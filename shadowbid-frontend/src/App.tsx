@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { WalletProvider } from './components/WalletProvider';
+import { Analytics } from '@vercel/analytics/react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { SolanaProvider } from './lib/SolanaProvider';
 import Navbar from './components/Navbar';
@@ -38,6 +39,7 @@ function App() {
                     </Router>
                 </SolanaProvider>
             </WalletProvider>
+            <Analytics />
         </ErrorBoundary>
     );
 }
