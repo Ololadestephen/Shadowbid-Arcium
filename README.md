@@ -192,8 +192,10 @@ await closeAuction({
 ### Setup
 
 # 1. Clone repository
-git clone https://github.com/yourusername/shadowbid
+```bash
+git clone https://github.com/Ololadestephen/Shadowbid-Arcium
 cd shadowbid
+```
 
 # 2. Install dependencies
 npm install
@@ -354,39 +356,7 @@ const client = new ShadowBidClient(
 );
 ```
 
-## 🏆 Judging Criteria Alignment
 
-### Innovation ✅
-- First blind auction system on Solana using MPC
-- Novel application of Arcium for MEV protection
-- Privacy-preserving price discovery mechanism
-
-### Technical Implementation ✅
-- **Native SOL Support**: Users can pay directly with SOL (wrapped automatically).
-- **Clean Architecture**: Separation of concerns between SDK, Contract, and Frontend.
-- **Robust Security**: Comprehensive validation and error handling.
-- **Production Ready**: Full test coverage and linted codebase.
-
-### User Experience ✅
-- **Smart Dashboard**:
-  - **Winner Notification**: "You Won!" banners with direct links to winnings.
-  - **Pending Refunds**: Automatic detection and notification of claimable refunds.
-  - **Status Updates**: Real-time updates for auction states (Live, Ended, Settled).
-- **Privacy First**: Clear notices explaining privacy guarantees to users.
-- **Simple Flow**: 3-step process (Create -> Bid -> Settle).
-
-### Impact ✅
-- Solves critical MEV problem in DeFi
-- Enables fair NFT auctions
-- Applicable to: RFPs, sealed bids, grants, fundraising
-- Privacy-first auction infrastructure
-
-### Clarity ✅
-- Detailed README with examples
-- Inline code documentation
-- Architecture diagrams
-- Clear explanation of Arcium's role
-- Step-by-step usage guides
 
 ## 🛣️ Roadmap
 
@@ -432,9 +402,8 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 ## 📞 Contact
 
-- **GitHub**: [@yourusername](https://github.com/yourusername)
-- **Twitter**: [@yourhandle](https://twitter.com/yourhandle)
-- **Discord**: [Join our server](https://discord.gg/yourinvite)
+- **GitHub**: [@OloladeStephen](https://github.com/Ololadestephen)
+- **Twitter**: [@Stephenololade](https://x.com/Stephenololade)
 
 ## 🔗 Links
 
