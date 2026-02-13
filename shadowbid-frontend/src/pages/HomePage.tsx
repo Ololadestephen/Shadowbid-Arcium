@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Shield, Lock, TrendingUp, Users, Clock, Zap, ArrowRight, Sparkles } from 'lucide-react';
 import { useAuctions } from '../lib/hooks';
-import { calculateAuctionStats, getAuctionBadge, formatTimeRemaining } from '../lib/utils';
+import { calculateAuctionStats, getAuctionBadge, formatTimeRemaining, parseAuctionDescription } from '../lib/utils';
 
 const HomePage = () => {
     const { auctions, loading } = useAuctions();
@@ -213,36 +213,53 @@ const HomePage = () => {
                     </div>
                 ) : featuredAuctions.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {featuredAuctions.map((auction) => (
-                            <Link
-                                key={auction.publicKey.toBase58()}
-                                to={`/auction/${auction.publicKey.toBase58()}`}
-                                className="bg-background-card rounded-xl overflow-hidden border border-border hover:shadow-card-hover transition-all card-hover"
-                            >
-                                <div className="relative">
-                                    <div className="w-full h-48 bg-background-elevated flex items-center justify-center">
-                                        <span className="text-text-muted">No Image</span>
+                        {featuredAuctions.map((auction) => {
+                            const { imageUrl } = parseAuctionDescription(auction.account.itemDescription);
+                            return (
+                                <Link
+                                    key={auction.publicKey.toBase58()}
+                                    to={`/auction/${auction.publicKey.toBase58()}`}
+                                    className="bg-background-card rounded-xl overflow-hidden border border-border hover:shadow-card-hover transition-all card-hover"
+                                >
+                                    <div className="relative">
+                                        <div className="w-full h-48 bg-background-elevated flex items-center justify-center">
+                                            {imageUrl ? (
+                                                <img
+                                                    src={imageUrl}
+                                                    alt={auction.account.itemName}
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => {
+                                                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/600?text=ShadowBid';
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div className="flex flex-col items-center text-text-muted opacity-20">
+                                                    <Lock className="w-12 h-12 mb-1" />
+                                                    <span className="text-sm">No Image</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        {getBadgeComponent(getAuctionBadge(auction.account))}
                                     </div>
-                                    {getBadgeComponent(getAuctionBadge(auction.account))}
-                                </div>
 
-                                <div className="p-5">
-                                    <h3 className="text-lg font-semibold text-text-primary mb-3 truncate">
-                                        {auction.account.itemName}
-                                    </h3>
-                                    <div className="flex items-center justify-between text-sm">
-                                        <div className="flex items-center space-x-1 text-primary-purple">
-                                            <Lock className="w-4 h-4" />
-                                            <span>{auction.account.totalBids} bids</span>
-                                        </div>
-                                        <div className="flex items-center space-x-1 text-status-error">
-                                            <Clock className="w-4 h-4" />
-                                            <span>{formatTimeRemaining(auction.account.endTime.toNumber())}</span>
+                                    <div className="p-5">
+                                        <h3 className="text-lg font-semibold text-text-primary mb-3 truncate">
+                                            {auction.account.itemName}
+                                        </h3>
+                                        <div className="flex items-center justify-between text-sm">
+                                            <div className="flex items-center space-x-1 text-primary-purple">
+                                                <Lock className="w-4 h-4" />
+                                                <span>{auction.account.totalBids} bids</span>
+                                            </div>
+                                            <div className="flex items-center space-x-1 text-status-error">
+                                                <Clock className="w-4 h-4" />
+                                                <span>{formatTimeRemaining(auction.account.endTime.toNumber())}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </Link>
-                        ))}
+                                </Link>
+                            );
+                        })}
                     </div>
                 ) : (
                     <div className="text-center py-12">
