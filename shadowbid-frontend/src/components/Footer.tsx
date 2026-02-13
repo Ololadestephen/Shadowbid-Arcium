@@ -22,7 +22,7 @@ const Footer = () => {
                         </p>
                         <div className="flex items-center space-x-4">
                             <a
-                                href="https://github.com/yourusername/shadowbid"
+                                href="https://github.com/Ololadestephen/Shadowbid-Arcium"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-text-muted hover:text-primary-purple transition-colors"
@@ -106,7 +106,7 @@ const Footer = () => {
                             </li>
                             <li>
                                 <a
-                                    href="https://github.com/yourusername/shadowbid"
+                                    href="https://github.com/Ololadestephen/Shadowbid-Arcium"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-text-secondary hover:text-primary-purple text-sm transition-colors"
