@@ -7,7 +7,8 @@ import {
     getAuctionBadge,
     formatTimeRemaining,
     lamportsToSol,
-    filterAuctionsByStatus
+    filterAuctionsByStatus,
+    parseAuctionDescription
 } from '../lib/utils';
 
 const BrowseAuctions = () => {
@@ -282,7 +283,8 @@ const BrowseAuctions = () => {
                                         </div>
                                     </div>
                                 </Link>
-                            ))}
+                            );
+                        })}
                     </div>
                 ) : (
                     <div className="space-y-4">
@@ -355,7 +357,8 @@ const BrowseAuctions = () => {
                                         </div>
                                     </div>
                                 </Link>
-                            ))}
+                            );
+                        })}
                     </div>
                 )}
 
