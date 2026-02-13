@@ -14,7 +14,7 @@ node --version        # Should be 18+
 ### Installation
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yourusername/shadowbid
+git clone https://github.com/Ololadestephen/Shadowbid-Arcium
 cd shadowbid
 
 # 2. Install dependencies (Root and Frontend)
