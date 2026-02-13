@@ -28,6 +28,11 @@ const AuctionDetails = () => {
 
     const [bidAmount, setBidAmount] = useState('');
 
+    // Extract image URL and cleaned description - moved to top to follow Rules of Hooks
+    const { description: displayDescription, imageUrl } = useMemo(() => {
+        return parseAuctionDescription(auction?.itemDescription || '');
+    }, [auction]);
+
     const userBid = useMemo(() => {
         if (!publicKey || !bids) return null;
         return bids.find((b: any) => b.account.bidder.equals(publicKey));
@@ -183,11 +188,6 @@ const AuctionDetails = () => {
     }
 
     const badge = getAuctionBadge(auction);
-
-    // Extract image URL and cleaned description if separator exists
-    const { description: displayDescription, imageUrl } = useMemo(() => {
-        return parseAuctionDescription(auction.itemDescription);
-    }, [auction]);
 
 
     return (
