@@ -362,16 +362,18 @@ const client = new ShadowBidClient(
 
 ### Phase 1: Core Functionality ✅
 - [x] Smart contract development
-- [x] Arcium integration
+- [x] Arcium integration (Blind Bidding via MPC)
 - [x] TypeScript SDK
 - [x] Unit tests
-- [x] Native SOL Support
+- [x] Native SOL Support (WSOL Auto-wrapping)
 
-### Phase 2: Frontend ✅
+### Phase 2: UX & Frontend ✅
 - [x] React web application
 - [x] Wallet integration
 - [x] Real-time auction dashboard
-- [x] Smart Notifications (Wins/Refunds)
+- [x] **Smart Notifications**: Instant alerts for Wins and Pending Refunds
+- [x] **Dashboard 2.0**: Integrated "Pending Refunds" and "Claim Funds" center
+- [x] **Rich Media**: Image URL support for all auctions
 - [x] Mobile-responsive design
 
 ### Phase 3: Advanced Features
