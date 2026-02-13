@@ -586,4 +586,4 @@ export class ShadowBidClient {
 // Type definitions placeholder
 
 
-export * from "../../../target/types/shadowbid";
+export * from "../types/shadowbid";

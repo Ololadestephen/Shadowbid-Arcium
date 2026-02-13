@@ -7,8 +7,7 @@ import {
     getAuctionBadge,
     formatTimeRemaining,
     lamportsToSol,
-    filterAuctionsByStatus,
-    getAuctionStatus
+    filterAuctionsByStatus
 } from '../lib/utils';
 
 const BrowseAuctions = () => {
