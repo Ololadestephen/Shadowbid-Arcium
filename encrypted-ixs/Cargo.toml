@@ -1,0 +1,11 @@
+[package]
+name = "encrypted-ixs"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+arcis = "0.7.0"
+arcis-compiler = "0.7.0"
