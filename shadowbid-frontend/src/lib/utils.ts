@@ -265,3 +265,21 @@ export const saveTransaction = (userPubkey: PublicKey | null, tx: Transaction) =
         console.error('Failed to save transaction', e);
     }
 };
+
+// Parse auction description and image URL
+export const parseAuctionDescription = (description: string): { description: string; imageUrl: string | null } => {
+    if (!description) return { description: '', imageUrl: null };
+
+    const parts = description.split(' ||img:');
+    if (parts.length > 1) {
+        return {
+            description: parts[0],
+            imageUrl: parts[1]
+        };
+    }
+
+    return {
+        description,
+        imageUrl: null
+    };
+};

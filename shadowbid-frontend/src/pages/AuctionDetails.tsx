@@ -6,7 +6,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 import { NATIVE_MINT } from '@solana/spl-token';
 import { useAuction, useAuctionBids, usePlaceBid, useStartAuction, useCloseAuction, useSettleAuction, useRefundBid } from '../lib/hooks';
-import { formatAddress, formatTimeRemaining, getAuctionBadge, lamportsToSol, saveTransaction, getTransactions } from '../lib/utils';
+import { formatAddress, formatTimeRemaining, getAuctionBadge, lamportsToSol, saveTransaction, getTransactions, parseAuctionDescription } from '../lib/utils';
 
 // Use Native SOL Mint
 const DEFAULT_MINT = NATIVE_MINT;
@@ -184,6 +184,11 @@ const AuctionDetails = () => {
 
     const badge = getAuctionBadge(auction);
 
+    // Extract image URL and cleaned description if separator exists
+    const { description: displayDescription, imageUrl } = useMemo(() => {
+        return parseAuctionDescription(auction.itemDescription);
+    }, [auction]);
+
 
     return (
         <div className="min-h-screen bg-background-main">
@@ -202,7 +207,21 @@ const AuctionDetails = () => {
                     <div>
                         <div className="bg-background-card rounded-xl overflow-hidden border border-border sticky top-24">
                             <div className="w-full aspect-square bg-background-elevated flex items-center justify-center">
-                                <span className="text-text-muted text-lg">No Image Available</span>
+                                {imageUrl ? (
+                                    <img
+                                        src={imageUrl}
+                                        alt={auction.itemName}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/600?text=ShadowBid+Item';
+                                        }}
+                                    />
+                                ) : (
+                                    <div className="flex flex-col items-center text-text-muted">
+                                        <Lock className="w-16 h-16 mb-2 opacity-20" />
+                                        <span className="text-lg">No Image Provided</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -237,7 +256,7 @@ const AuctionDetails = () => {
                                 {auction.itemName}
                             </h1>
                             <p className="text-text-secondary leading-relaxed">
-                                {auction.itemDescription}
+                                {displayDescription}
                             </p>
                         </div>
 

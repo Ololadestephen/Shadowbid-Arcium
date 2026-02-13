@@ -224,106 +224,138 @@ const BrowseAuctions = () => {
                     </div>
                 ) : viewMode === 'grid' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredAuctions.map((auction) => (
-                            <Link
-                                key={auction.publicKey.toBase58()}
-                                to={`/auction/${auction.publicKey.toBase58()}`}
-                                className="bg-background-card rounded-xl overflow-hidden border border-border hover:shadow-card-hover transition-all card-hover"
-                            >
-                                <div className="relative">
-                                    <div className="w-full h-48 bg-background-elevated flex items-center justify-center">
-                                        <span className="text-text-muted">No Image</span>
-                                    </div>
-                                    <div className="absolute top-3 right-3">
-                                        {getBadgeComponent(getAuctionBadge(auction.account))}
-                                    </div>
-                                </div>
-
-                                <div className="p-5">
-                                    <h3 className="text-lg font-semibold text-text-primary mb-2 truncate">
-                                        {auction.account.itemName}
-                                    </h3>
-                                    <p className="text-sm text-text-secondary mb-4 line-clamp-2">
-                                        {auction.account.itemDescription}
-                                    </p>
-
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center space-x-1 text-primary-purple">
-                                            <Lock className="w-4 h-4" />
-                                            <span className="text-sm font-semibold">{auction.account.totalBids} bids</span>
-                                        </div>
-                                        <div className="flex items-center space-x-1 text-status-error">
-                                            <Clock className="w-4 h-4" />
-                                            <span className="text-sm font-semibold">{formatTimeRemaining(auction.account.endTime.toNumber())}</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center justify-between text-xs">
-                                        <span className="text-text-muted">Reserve Price</span>
-                                        <span className="text-text-primary font-semibold">
-                                            {lamportsToSol(auction.account.reservePrice.toNumber())} SOL
-                                        </span>
-                                    </div>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        {filteredAuctions.map((auction) => (
-                            <Link
-                                key={auction.publicKey.toBase58()}
-                                to={`/auction/${auction.publicKey.toBase58()}`}
-                                className="bg-background-card rounded-xl border border-border hover:shadow-card-hover transition-all card-hover overflow-hidden"
-                            >
-                                <div className="flex flex-col md:flex-row">
-                                    <div className="relative md:w-64 h-48 md:h-auto flex-shrink-0">
-                                        <div className="w-full h-full bg-background-elevated flex items-center justify-center min-h-[192px]">
-                                            <span className="text-text-muted">No Image</span>
+                        {filteredAuctions.map((auction) => {
+                            const { description, imageUrl } = parseAuctionDescription(auction.account.itemDescription);
+                            return (
+                                <Link
+                                    key={auction.publicKey.toBase58()}
+                                    to={`/auction/${auction.publicKey.toBase58()}`}
+                                    className="bg-background-card rounded-xl overflow-hidden border border-border hover:shadow-card-hover transition-all card-hover"
+                                >
+                                    <div className="relative">
+                                        <div className="w-full h-48 bg-background-elevated flex items-center justify-center">
+                                            {imageUrl ? (
+                                                <img
+                                                    src={imageUrl}
+                                                    alt={auction.account.itemName}
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => {
+                                                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/600?text=ShadowBid';
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div className="flex flex-col items-center text-text-muted opacity-20">
+                                                    <Lock className="w-12 h-12 mb-1" />
+                                                    <span className="text-sm">No Image</span>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="absolute top-3 right-3">
                                             {getBadgeComponent(getAuctionBadge(auction.account))}
                                         </div>
                                     </div>
 
-                                    <div className="flex-1 p-6">
-                                        <h3 className="text-xl font-semibold text-text-primary mb-2">
+                                    <div className="p-5">
+                                        <h3 className="text-lg font-semibold text-text-primary mb-2 truncate">
                                             {auction.account.itemName}
                                         </h3>
-                                        <p className="text-text-secondary mb-4 line-clamp-2">
-                                            {auction.account.itemDescription}
+                                        <p className="text-sm text-text-secondary mb-4 line-clamp-2">
+                                            {description}
                                         </p>
 
-                                        <div className="flex flex-wrap items-center gap-6">
-                                            <div className="flex items-center space-x-2 text-primary-purple">
-                                                <Lock className="w-5 h-5" />
-                                                <div>
-                                                    <p className="text-xs text-text-muted">Bids</p>
-                                                    <p className="text-sm font-semibold">{auction.account.totalBids}</p>
-                                                </div>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center space-x-1 text-primary-purple">
+                                                <Lock className="w-4 h-4" />
+                                                <span className="text-sm font-semibold">{auction.account.totalBids} bids</span>
                                             </div>
+                                            <div className="flex items-center space-x-1 text-status-error">
+                                                <Clock className="w-4 h-4" />
+                                                <span className="text-sm font-semibold">{formatTimeRemaining(auction.account.endTime.toNumber())}</span>
+                                            </div>
+                                        </div>
 
-                                            <div className="flex items-center space-x-2 text-status-error">
-                                                <Clock className="w-5 h-5" />
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-text-muted">Reserve Price</span>
+                                            <span className="text-text-primary font-semibold">
+                                                {lamportsToSol(auction.account.reservePrice.toNumber())} SOL
+                                            </span>
+                                        </div>
+                                    </div>
+                                </Link>
+                            ))}
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {filteredAuctions.map((auction) => {
+                            const { description, imageUrl } = parseAuctionDescription(auction.account.itemDescription);
+                            return (
+                                <Link
+                                    key={auction.publicKey.toBase58()}
+                                    to={`/auction/${auction.publicKey.toBase58()}`}
+                                    className="bg-background-card rounded-xl border border-border hover:shadow-card-hover transition-all card-hover overflow-hidden"
+                                >
+                                    <div className="flex flex-col md:flex-row">
+                                        <div className="relative md:w-64 h-48 md:h-auto flex-shrink-0">
+                                            <div className="w-full h-full bg-background-elevated flex items-center justify-center min-h-[192px]">
+                                                {imageUrl ? (
+                                                    <img
+                                                        src={imageUrl}
+                                                        alt={auction.account.itemName}
+                                                        className="w-full h-full object-cover"
+                                                        onError={(e) => {
+                                                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/600?text=ShadowBid';
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <div className="flex flex-col items-center text-text-muted opacity-20">
+                                                        <Lock className="w-12 h-12 mb-1" />
+                                                        <span className="text-sm">No Image</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="absolute top-3 right-3">
+                                                {getBadgeComponent(getAuctionBadge(auction.account))}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex-1 p-6">
+                                            <h3 className="text-xl font-semibold text-text-primary mb-2">
+                                                {auction.account.itemName}
+                                            </h3>
+                                            <p className="text-text-secondary mb-4 line-clamp-2">
+                                                {description}
+                                            </p>
+
+                                            <div className="flex flex-wrap items-center gap-6">
+                                                <div className="flex items-center space-x-2 text-primary-purple">
+                                                    <Lock className="w-5 h-5" />
+                                                    <div>
+                                                        <p className="text-xs text-text-muted">Bids</p>
+                                                        <p className="text-sm font-semibold">{auction.account.totalBids}</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center space-x-2 text-status-error">
+                                                    <Clock className="w-5 h-5" />
+                                                    <div>
+                                                        <p className="text-xs text-text-muted">Time Left</p>
+                                                        <p className="text-sm font-semibold">
+                                                            {formatTimeRemaining(auction.account.endTime.toNumber())}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
                                                 <div>
-                                                    <p className="text-xs text-text-muted">Time Left</p>
-                                                    <p className="text-sm font-semibold">
-                                                        {formatTimeRemaining(auction.account.endTime.toNumber())}
+                                                    <p className="text-xs text-text-muted">Reserve Price</p>
+                                                    <p className="text-sm font-semibold text-text-primary">
+                                                        {lamportsToSol(auction.account.reservePrice.toNumber())} SOL
                                                     </p>
                                                 </div>
                                             </div>
-
-                                            <div>
-                                                <p className="text-xs text-text-muted">Reserve Price</p>
-                                                <p className="text-sm font-semibold text-text-primary">
-                                                    {lamportsToSol(auction.account.reservePrice.toNumber())} SOL
-                                                </p>
-                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </Link>
-                        ))}
+                                </Link>
+                            ))}
                     </div>
                 )}
 

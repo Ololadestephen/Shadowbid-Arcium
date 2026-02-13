@@ -22,6 +22,7 @@ const CreateAuction = () => {
         reservePrice: '',
         startTime: '',
         endTime: '',
+        imageUrl: '',
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -32,13 +33,18 @@ const CreateAuction = () => {
         }
 
         try {
+            // Combine description and image URL using a separator
+            const combinedDescription = formData.imageUrl
+                ? `${formData.description} ||img:${formData.imageUrl}`
+                : formData.description;
+
             const result = await createAuction({
                 auctionId: generateAuctionId(),
                 startTime: new Date(formData.startTime),
                 endTime: new Date(formData.endTime),
                 reservePrice: solToLamports(parseFloat(formData.reservePrice)),
                 itemName: formData.title,
-                itemDescription: formData.description,
+                itemDescription: combinedDescription,
                 tokenMint: DEFAULT_MINT,
             });
 
@@ -101,13 +107,16 @@ const CreateAuction = () => {
                             <div>
                                 <label className="block text-sm font-medium text-text-primary mb-2">
                                     <Upload className="w-4 h-4 inline mr-2" />
-                                    Upload Image
+                                    Image URL (Optional)
                                 </label>
-                                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary-purple transition-colors cursor-pointer">
-                                    <Upload className="w-12 h-12 text-text-muted mx-auto mb-2" />
-                                    <p className="text-text-secondary text-sm">Click to upload or drag and drop</p>
-                                    <p className="text-text-muted text-xs mt-1">PNG, JPG, GIF up to 10MB</p>
-                                </div>
+                                <input
+                                    type="url"
+                                    value={formData.imageUrl}
+                                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                                    placeholder="https://example.com/image.jpg"
+                                    className="w-full px-4 py-3 bg-background-input border border-border rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-primary-purple transition-colors"
+                                />
+                                <p className="text-text-muted text-xs mt-1">Provide a link to your item's image (Imgur, IPFS, etc.)</p>
                             </div>
                         </div>
                     </div>
