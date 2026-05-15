@@ -172,6 +172,38 @@ await shadowbidClient.queueCompareBids({
 
 The legacy SDK-side winner fallback has been disabled. `closeAuction` no longer accepts a client-selected winner; direct close attempts return `ArciumCallbackRequired`.
 
+## ✅ Current Working Demo Flow
+
+ShadowBid currently supports the full blind-auction lifecycle on Solana devnet:
+
+1. **Create auction** - A creator opens a new auction with item metadata, timing, and reserve information.
+2. **Start auction** - The auction becomes active and accepts encrypted bids.
+3. **Place encrypted bid** - A bidder locks funds in escrow while the bid comparison payload is stored as Arcium encrypted data.
+4. **Finalize with Arcium** - After the auction ends, the frontend queues the `compare_bids` computation through Arcium instead of allowing manual winner selection.
+5. **Verified callback closes auction** - Arcium returns the comparison result through the callback path, and the Solana program closes the auction using the verified winner result.
+6. **Claim or refund** - The winner can claim the auction outcome, and losing bidders can reclaim their escrowed funds through the refund flow.
+
+The frontend includes user-facing notifications for successful bids, Arcium finalization status, winner/loser outcomes, and pending refunds.
+
+## 🔁 Refund Flow
+
+Losing bidders are not automatically paid back at close. After Arcium finalizes the auction, each losing bidder can claim their own refund from the frontend dashboard or auction detail page.
+
+The program protects refund safety by:
+
+- Rejecting refunds for the winning bid
+- Rejecting duplicate refunds for already processed bids
+- Returning escrowed funds only to the original bidder
+- Updating the bid status after a successful refund
+
+This keeps the auction close path focused on verified winner selection while allowing each losing bidder to recover funds independently.
+
+## ⚠️ Known Privacy Boundary
+
+ShadowBid uses Arcium to protect bid comparison and avoid client-side winner selection. Bid comparison inputs are encrypted and the Solana program no longer accepts an SDK-selected winner.
+
+The current devnet implementation still uses visible Solana escrow transfers for bid collateral. That means observers can see escrow movement on-chain even though the winner comparison is handled through Arcium. A production version should further harden collateral sizing and reserve handling so less economic metadata is visible before finalization.
+
 ### Circuit Upload
 
 The repo includes Arcium circuit interface artifacts under `build/` and the source circuit in `encrypted-ixs/`. If `arcium build --skip-program` cannot emit a `.arcis` artifact in your environment, build the circuit in an Arcium-enabled environment and copy the generated files back into `build/`, especially:
@@ -276,7 +308,7 @@ const { signature, bidPda } = await client.placeBid({
 console.log('Bid placed (encrypted):', signature);
 ```
 
-### Queue Arcium Winner Comparison
+### Finalize with Arcium
 ```typescript
 const { signature, finalizeSignature } = await client.queueCompareBids({
   auctionPda,
@@ -288,6 +320,8 @@ const { signature, finalizeSignature } = await client.queueCompareBids({
 console.log('Comparison queued:', signature);
 console.log('Arcium callback finalized:', finalizeSignature);
 ```
+
+The frontend shows the queued transaction and computation offset while the comparison is pending. Users can refresh auction status to confirm whether the verified callback has closed the auction.
 
 ### Settle Auction
 ```typescript
@@ -344,10 +378,11 @@ cargo tarpaulin --out Html
 1. `create_auction` - Initialize new auction
 2. `place_bid` - Submit encrypted bid
 3. `start_auction` - Activate pending auction
-4. `close_auction` - Determine winner via MPC
-5. `settle_auction` - Transfer winning bid to creator
-6. `refund_bid` - Return funds to losing bidders
-7. `cancel_auction` - Cancel auction (if no bids)
+4. `compare_bids` - Queue encrypted bid comparison through Arcium
+5. `compare_bids_callback` - Close auction from the verified Arcium callback
+6. `settle_auction` - Transfer winning bid to creator
+7. `refund_bid` - Return funds to losing bidders
+8. `cancel_auction` - Cancel auction (if no bids)
 
 ### Events
 - `AuctionCreated` - New auction initialized
