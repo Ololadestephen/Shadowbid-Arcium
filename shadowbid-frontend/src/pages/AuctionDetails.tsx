@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Lock, Clock, Shield, ArrowLeft, User, Calendar, DollarSign, RefreshCw, Trophy, Info } from 'lucide-react';
+import { Lock, Clock, Shield, ArrowLeft, User, Calendar, DollarSign, RefreshCw, Trophy, Info, Cpu } from 'lucide-react';
 
 import { useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 import { NATIVE_MINT } from '@solana/spl-token';
-import { useAuction, useAuctionBids, usePlaceBid, useStartAuction, useSettleAuction, useRefundBid } from '../lib/hooks';
+import { useAuction, useAuctionBids, usePlaceBid, useStartAuction, useFinalizeAuction, useSettleAuction, useRefundBid } from '../lib/hooks';
 import { formatAddress, formatTimeRemaining, getAuctionBadge, lamportsToSol, saveTransaction, getTransactions, parseAuctionDescription } from '../lib/utils';
 import { useNotifications } from '../components/Notifications';
 
@@ -24,6 +24,7 @@ const AuctionDetails = () => {
 
     const { placeBid, loading: bidding } = usePlaceBid();
     const { startAuction, loading: starting } = useStartAuction();
+    const { finalizeAuction, loading: finalizing } = useFinalizeAuction();
     const { settleAuction, loading: settling } = useSettleAuction();
     const { refundBid, loading: refunding } = useRefundBid();
 
@@ -51,6 +52,15 @@ const AuctionDetails = () => {
         const auctionAddr = formatAddress(auctionPda);
         return txs.some(tx => tx.type === 'claim' && tx.description.includes(auctionAddr));
     }, [publicKey, auctionPda]);
+
+    const auctionEnded = useMemo(() => {
+        if (!auction) return false;
+        return Math.floor(Date.now() / 1000) >= auction.endTime.toNumber();
+    }, [auction]);
+
+    const activeBids = useMemo(() => {
+        return bids.filter((bid: any) => Object.keys(bid.account.status)[0].toLowerCase() === 'active');
+    }, [bids]);
 
     const handleStartAuction = async () => {
         if (!auctionPda) return;
@@ -96,6 +106,70 @@ const AuctionDetails = () => {
                 type: 'error',
                 title: 'Could not claim funds',
                 message: err.message || 'Please try again in a moment.',
+            });
+        }
+    };
+
+    const handleFinalizeWithArcium = async () => {
+        if (!auctionPda) return;
+
+        if (!auctionEnded) {
+            notify({
+                type: 'info',
+                title: 'Auction still running',
+                message: 'Arcium finalization becomes available after the auction end time.',
+            });
+            return;
+        }
+
+        if (activeBids.length < 2) {
+            notify({
+                type: 'error',
+                title: 'Not enough bids',
+                message: 'Arcium comparison needs two encrypted bids to finalize this auction.',
+            });
+            return;
+        }
+
+        if (activeBids.length > 2) {
+            notify({
+                type: 'error',
+                title: 'Too many bids for this finalizer',
+                message: 'The current UI finalizes the two-bid Arcium demo path. A multi-bid bracket finalizer should be used for larger auctions.',
+                duration: 7600,
+            });
+            return;
+        }
+
+        try {
+            notify({
+                type: 'info',
+                title: 'Finalizing with Arcium',
+                message: 'Approve the queue transaction. The app will wait for the verified Arcium callback.',
+                duration: 7600,
+            });
+
+            const result = await finalizeAuction({
+                auctionPda,
+                bidAPda: activeBids[0].publicKey,
+                bidBPda: activeBids[1].publicKey,
+                waitForCallback: true,
+            });
+
+            notify({
+                type: 'success',
+                title: 'Auction finalized',
+                message: result.finalizeSignature
+                    ? 'Arcium returned a verified winner and closed the auction.'
+                    : 'The Arcium comparison was queued.',
+            });
+            await Promise.all([refetchAuction(), refetchBids()]);
+        } catch (err: any) {
+            notify({
+                type: 'error',
+                title: 'Arcium finalization failed',
+                message: err.message || 'The comparison could not be queued or finalized.',
+                duration: 7600,
             });
         }
     };
@@ -405,14 +479,44 @@ const AuctionDetails = () => {
                                         </button>
                                     )}
                                     {auction.status.active && (
-                                        <div className="rounded-lg border border-border bg-background-main p-4">
-                                            <div className="flex items-start space-x-3">
-                                                <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent-cyan" />
-                                                <p className="text-sm leading-5 text-text-secondary">
-                                                    Manual closing is disabled. When the auction ends, the winner should be finalized through Arcium's encrypted comparison flow.
-                                                </p>
+                                        auctionEnded ? (
+                                            <div className="space-y-3">
+                                                <button
+                                                    onClick={handleFinalizeWithArcium}
+                                                    disabled={finalizing || activeBids.length !== 2}
+                                                    className={`w-full py-3 rounded-lg font-semibold transition-all flex items-center justify-center space-x-2 ${activeBids.length === 2
+                                                        ? 'bg-primary-purple text-white hover:bg-opacity-90'
+                                                        : 'bg-background-main text-text-disabled cursor-not-allowed border border-border'
+                                                        }`}
+                                                >
+                                                    {finalizing ? (
+                                                        <>
+                                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                            <span>Waiting for Arcium...</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Cpu className="w-5 h-5" />
+                                                            <span>Finalize with Arcium</span>
+                                                        </>
+                                                    )}
+                                                </button>
+                                                {activeBids.length !== 2 && (
+                                                    <p className="text-xs leading-5 text-text-muted">
+                                                        This finalizer currently supports exactly two active bids. Current active bids: {activeBids.length}.
+                                                    </p>
+                                                )}
                                             </div>
-                                        </div>
+                                        ) : (
+                                            <div className="rounded-lg border border-border bg-background-main p-4">
+                                                <div className="flex items-start space-x-3">
+                                                    <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent-cyan" />
+                                                    <p className="text-sm leading-5 text-text-secondary">
+                                                        Manual closing is disabled. When the auction ends, the winner should be finalized through Arcium's encrypted comparison flow.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )
                                     )}
                                     {auction.status.closed && (
                                         <button

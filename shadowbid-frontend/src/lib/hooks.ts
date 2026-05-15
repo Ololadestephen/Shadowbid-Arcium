@@ -170,6 +170,38 @@ export const useCloseAuction = () => {
     return { closeAuction, loading, error };
 };
 
+export const useFinalizeAuction = () => {
+    const { client } = useSolana();
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const finalizeAuction = async (params: {
+        auctionPda: PublicKey;
+        bidAPda: PublicKey;
+        bidBPda: PublicKey;
+        waitForCallback?: boolean;
+    }) => {
+        if (!client) throw new Error('Solana client not initialized');
+        setLoading(true);
+        setError(null);
+        try {
+            const result = await client.queueCompareBids({
+                ...params,
+                waitForCallback: params.waitForCallback ?? true,
+            });
+            return result;
+        } catch (err: any) {
+            console.error('Error finalizing auction with Arcium:', err);
+            setError(err.message || 'Failed to finalize auction with Arcium');
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return { finalizeAuction, loading, error };
+};
+
 export const usePlaceBid = () => {
     const { client } = useSolana();
     const [loading, setLoading] = useState(false);
