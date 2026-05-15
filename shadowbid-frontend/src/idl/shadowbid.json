@@ -333,7 +333,8 @@
           "name": "mxe_account"
         },
         {
-          "name": "sign_pda_account"
+          "name": "sign_pda_account",
+          "writable": true
         },
         {
           "name": "mempool_account",

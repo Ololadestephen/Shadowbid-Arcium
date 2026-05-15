@@ -16,6 +16,7 @@ const BID_CIPHERTEXT_DATA_OFFSET: u32 = 8 + 32 + 32 + 4;
 const COMPARE_BIDS_COMP_DEF_OFFSET: u32 = arcium_anchor::comp_def_offset("compare_bids");
 const MIN_ARCIUM_PROOF_LEN: usize = 32;
 const MAX_CIPHERTEXT_CHUNK_LEN: usize = 800;
+const ARCIUM_SIGNER_ACCOUNT_SPACE: usize = 9;
 
 declare_id!("EkfGifLr2z1zyVsqBWekmRnzGcfy45KzdNpSZbFm4yuy");
 
@@ -291,6 +292,12 @@ pub mod shadowbid {
                     is_writable: true,
                 },
             ],
+        )?;
+
+        ensure_arcium_signer_account(
+            &ctx.accounts.authority.to_account_info(),
+            &ctx.accounts.sign_pda_account.to_account_info(),
+            &ctx.accounts.system_program.to_account_info(),
         )?;
 
         arcium_anchor::queue_computation(
@@ -886,6 +893,37 @@ fn hash_encrypted_bid(data: &[u8]) -> [u8; 32] {
     hasher.finalize().into()
 }
 
+fn ensure_arcium_signer_account<'info>(
+    payer: &AccountInfo<'info>,
+    signer_account: &AccountInfo<'info>,
+    system_program: &AccountInfo<'info>,
+) -> Result<()> {
+    if signer_account.data_len() >= ARCIUM_SIGNER_ACCOUNT_SPACE {
+        return Ok(());
+    }
+
+    let bump = Pubkey::find_program_address(&[SIGN_PDA_SEED], &ID).1;
+    let rent_lamports = Rent::get()?.minimum_balance(ARCIUM_SIGNER_ACCOUNT_SPACE);
+
+    anchor_lang::solana_program::program::invoke_signed(
+        &anchor_lang::solana_program::system_instruction::create_account(
+            payer.key,
+            signer_account.key,
+            rent_lamports,
+            ARCIUM_SIGNER_ACCOUNT_SPACE as u64,
+            &ID,
+        ),
+        &[
+            payer.clone(),
+            signer_account.clone(),
+            system_program.clone(),
+        ],
+        &[&[SIGN_PDA_SEED, &[bump]]],
+    )?;
+
+    Ok(())
+}
+
 #[init_computation_definition_accounts("compare_bids", payer)]
 #[derive(Accounts)]
 pub struct InitCompareBidsCompDef<'info> {
@@ -953,7 +991,7 @@ pub struct CompareBids<'info> {
     pub mxe_account: Box<Account<'info, MXEAccount>>,
 
     /// CHECK: Arcium signer PDA.
-    #[account(address = derive_sign_pda!())]
+    #[account(mut, address = derive_sign_pda!())]
     pub sign_pda_account: UncheckedAccount<'info>,
 
     /// CHECK: Arcium mempool PDA.

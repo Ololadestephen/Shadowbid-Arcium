@@ -339,7 +339,8 @@ export type Shadowbid = {
           "name": "mxeAccount"
         },
         {
-          "name": "signPdaAccount"
+          "name": "signPdaAccount",
+          "writable": true
         },
         {
           "name": "mempoolAccount",
