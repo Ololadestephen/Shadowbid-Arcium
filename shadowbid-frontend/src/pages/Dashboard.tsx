@@ -5,10 +5,12 @@ import { Link } from 'react-router-dom';
 import { useUserBids, useAuctions, useRefundBid } from '../lib/hooks';
 import { getAuctionStatus, formatTimeRemaining, formatAddress, lamportsToSol, getTransactions, formatRelativeTime, saveTransaction } from '../lib/utils';
 import { NATIVE_MINT } from '@solana/spl-token';
+import { useNotifications } from '../components/Notifications';
 
 
 const Dashboard = () => {
     const { connected, publicKey } = useWallet();
+    const { notify } = useNotifications();
     const { bids, loading: bidsLoading, refetch: refetchBids } = useUserBids(publicKey);
     const { auctions: allAuctions, loading: allAuctionsLoading } = useAuctions();
 
@@ -90,10 +92,18 @@ const Dashboard = () => {
                 date: Date.now(),
                 status: 'confirmed'
             });
-            alert('Bid refunded successfully!');
+            notify({
+                type: 'success',
+                title: 'Bid refunded',
+                message: 'Your locked bid funds were returned.',
+            });
             refetchBids();
         } catch (err: any) {
-            alert(err.message || 'Failed to refund bid');
+            notify({
+                type: 'error',
+                title: 'Could not refund bid',
+                message: err.message || 'Please try again in a moment.',
+            });
         } finally {
             setProcessingRefund(null);
         }

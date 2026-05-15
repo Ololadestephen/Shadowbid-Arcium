@@ -5,6 +5,7 @@ import { Upload, Calendar, DollarSign, FileText, Shield } from 'lucide-react';
 import { useCreateAuction } from '../lib/hooks';
 import { solToLamports, generateAuctionId } from '../lib/utils';
 import { NATIVE_MINT } from '@solana/spl-token';
+import { useNotifications } from '../components/Notifications';
 
 // Use Native SOL Mint
 const DEFAULT_MINT = NATIVE_MINT;
@@ -14,6 +15,7 @@ const DEFAULT_MINT = NATIVE_MINT;
 const CreateAuction = () => {
     const { connected } = useWallet();
     const navigate = useNavigate();
+    const { notify } = useNotifications();
     const { createAuction, loading, error: createError } = useCreateAuction();
 
     const [formData, setFormData] = useState({
@@ -28,7 +30,11 @@ const CreateAuction = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!connected) {
-            alert('Please connect your wallet');
+            notify({
+                type: 'info',
+                title: 'Connect your wallet',
+                message: 'Connect a devnet wallet before creating an auction.',
+            });
             return;
         }
 
@@ -48,11 +54,19 @@ const CreateAuction = () => {
                 tokenMint: DEFAULT_MINT,
             });
 
-            alert('Auction created successfully!');
+            notify({
+                type: 'success',
+                title: 'Auction created',
+                message: 'Your private auction is ready to start.',
+            });
             navigate(`/auction/${result.auctionPda.toBase58()}`);
         } catch (err: any) {
             console.error('Failed to create:', err);
-            alert(err.message || 'Failed to create auction');
+            notify({
+                type: 'error',
+                title: 'Could not create auction',
+                message: err.message || 'Please check the form and try again.',
+            });
         }
     };
 

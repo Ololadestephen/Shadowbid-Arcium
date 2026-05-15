@@ -181,6 +181,7 @@ export const usePlaceBid = () => {
         auctionPda: PublicKey;
         bidAmount: number;
         tokenMint: PublicKey;
+        onProgress?: (message: string) => void;
     }) => {
         if (!client) throw new Error('Solana client not initialized');
         setLoading(true);

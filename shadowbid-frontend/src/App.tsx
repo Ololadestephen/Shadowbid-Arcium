@@ -5,6 +5,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { SolanaProvider } from './lib/SolanaProvider';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import { NotificationProvider } from './components/Notifications';
 import HomePage from './pages/HomePage';
 import BrowseAuctions from './pages/BrowseAuctions';
 import AuctionDetails from './pages/AuctionDetails';
@@ -19,23 +20,25 @@ function App() {
             <WalletProvider>
                 <SolanaProvider>
                     <Router>
-                        <div className="min-h-screen flex flex-col bg-background-main">
-                            <Navbar />
+                        <NotificationProvider>
+                            <div className="min-h-screen flex flex-col bg-background-main">
+                                <Navbar />
 
-                            <main className="flex-1">
-                                <Routes>
-                                    <Route path="/" element={<HomePage />} />
-                                    <Route path="/browse" element={<BrowseAuctions />} />
-                                    <Route path="/auction/:id" element={<AuctionDetails />} />
-                                    <Route path="/create" element={<CreateAuction />} />
-                                    <Route path="/dashboard" element={<Dashboard />} />
-                                    <Route path="/how-it-works" element={<HowItWorks />} />
-                                    <Route path="/history" element={<AuctionHistory />} />
-                                </Routes>
-                            </main>
+                                <main className="flex-1">
+                                    <Routes>
+                                        <Route path="/" element={<HomePage />} />
+                                        <Route path="/browse" element={<BrowseAuctions />} />
+                                        <Route path="/auction/:id" element={<AuctionDetails />} />
+                                        <Route path="/create" element={<CreateAuction />} />
+                                        <Route path="/dashboard" element={<Dashboard />} />
+                                        <Route path="/how-it-works" element={<HowItWorks />} />
+                                        <Route path="/history" element={<AuctionHistory />} />
+                                    </Routes>
+                                </main>
 
-                            <Footer />
-                        </div>
+                                <Footer />
+                            </div>
+                        </NotificationProvider>
                     </Router>
                 </SolanaProvider>
             </WalletProvider>

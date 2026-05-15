@@ -128,8 +128,11 @@ export class ShadowBidClient {
     auctionPda: PublicKey;
     bidAmount: number;
     tokenMint: PublicKey;
+    onProgress?: (message: string) => void;
   }): Promise<{ signature: string; bidPda: PublicKey }> {
     const bidder = this.provider.wallet.publicKey;
+
+    params.onProgress?.("Encrypting your bid locally with Arcium.");
 
     // Encrypt bid using Arcium
     const encryptedBid = await this.encryptBidWithArcium(
@@ -225,7 +228,16 @@ export class ShadowBidClient {
       const bidCiphertextInfo = await this.provider.connection.getAccountInfo(
         bidCiphertextPda
       );
+      const chunkCount = Math.ceil(
+        encryptedBid.ciphertext.length / MAX_CIPHERTEXT_CHUNK_LEN
+      );
+      const approvalTotal = (bidCiphertextInfo ? 0 : 1) + chunkCount + 1;
+      let approvalIndex = 0;
+
       if (!bidCiphertextInfo) {
+        params.onProgress?.(
+          `Approve ${++approvalIndex} of ${approvalTotal}: prepare private bid storage.`
+        );
         await (this.program.methods as any)
           .initBidCiphertext()
           .accounts({
@@ -246,6 +258,10 @@ export class ShadowBidClient {
           offset,
           offset + MAX_CIPHERTEXT_CHUNK_LEN
         );
+        const chunkIndex = Math.floor(offset / MAX_CIPHERTEXT_CHUNK_LEN) + 1;
+        params.onProgress?.(
+          `Approve ${++approvalIndex} of ${approvalTotal}: store encrypted bid part ${chunkIndex} of ${chunkCount}.`
+        );
         await (this.program.methods as any)
           .writeBidCiphertextChunk(offset, Buffer.from(chunk))
           .accounts({
@@ -256,6 +272,9 @@ export class ShadowBidClient {
           .rpc();
       }
 
+      params.onProgress?.(
+        `Approve ${++approvalIndex} of ${approvalTotal}: lock your bid amount.`
+      );
       const tx = await (this.program.methods as any)
         .placeBid(
           new BN(params.bidAmount),

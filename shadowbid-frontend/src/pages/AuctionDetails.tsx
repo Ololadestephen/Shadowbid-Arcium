@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Lock, Clock, Shield, ArrowLeft, User, Calendar, DollarSign, RefreshCw, Trophy } from 'lucide-react';
+import { Lock, Clock, Shield, ArrowLeft, User, Calendar, DollarSign, RefreshCw, Trophy, Info } from 'lucide-react';
 
 import { useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 import { NATIVE_MINT } from '@solana/spl-token';
-import { useAuction, useAuctionBids, usePlaceBid, useStartAuction, useCloseAuction, useSettleAuction, useRefundBid } from '../lib/hooks';
+import { useAuction, useAuctionBids, usePlaceBid, useStartAuction, useSettleAuction, useRefundBid } from '../lib/hooks';
 import { formatAddress, formatTimeRemaining, getAuctionBadge, lamportsToSol, saveTransaction, getTransactions, parseAuctionDescription } from '../lib/utils';
+import { useNotifications } from '../components/Notifications';
 
 // Use Native SOL Mint
 const DEFAULT_MINT = NATIVE_MINT;
@@ -15,6 +16,7 @@ const AuctionDetails = () => {
     const { id } = useParams();
     const auctionPda = useMemo(() => (id ? new PublicKey(id) : null), [id]);
     const { connected, publicKey } = useWallet();
+    const { notify } = useNotifications();
 
 
     const { auction, loading, error } = useAuction(auctionPda!);
@@ -22,11 +24,11 @@ const AuctionDetails = () => {
 
     const { placeBid, loading: bidding } = usePlaceBid();
     const { startAuction, loading: starting } = useStartAuction();
-    const { closeAuction, loading: closing } = useCloseAuction();
     const { settleAuction, loading: settling } = useSettleAuction();
     const { refundBid, loading: refunding } = useRefundBid();
 
     const [bidAmount, setBidAmount] = useState('');
+    const [bidProgress, setBidProgress] = useState('');
 
     // Extract image URL and cleaned description - moved to top to follow Rules of Hooks
     const { description: displayDescription, imageUrl } = useMemo(() => {
@@ -54,21 +56,18 @@ const AuctionDetails = () => {
         if (!auctionPda) return;
         try {
             await startAuction(auctionPda);
-            alert('Auction started successfully!');
+            notify({
+                type: 'success',
+                title: 'Auction started',
+                message: 'Bidders can now place private encrypted bids.',
+            });
             window.location.reload(); // Refresh to get updated status
         } catch (err: any) {
-            alert(err.message || 'Failed to start auction');
-        }
-    };
-
-    const handleCloseAuction = async () => {
-        if (!auctionPda) return;
-        try {
-            await closeAuction(auctionPda);
-            alert('Auction closed successfully!');
-            window.location.reload(); // Refresh to get updated status
-        } catch (err: any) {
-            alert(err.message || 'Failed to close auction');
+            notify({
+                type: 'error',
+                title: 'Could not start auction',
+                message: err.message || 'Please try again after confirming the auction timing.',
+            });
         }
     };
 
@@ -86,10 +85,18 @@ const AuctionDetails = () => {
                 date: Date.now(),
                 status: 'confirmed'
             });
-            alert('Funds claimed successfully!');
+            notify({
+                type: 'success',
+                title: 'Funds claimed',
+                message: 'The winning bid funds were sent to your wallet.',
+            });
             window.location.reload();
         } catch (err: any) {
-            alert(err.message || 'Failed to claim funds');
+            notify({
+                type: 'error',
+                title: 'Could not claim funds',
+                message: err.message || 'Please try again in a moment.',
+            });
         }
     };
 
@@ -109,37 +116,73 @@ const AuctionDetails = () => {
                     status: 'confirmed'
                 });
             }
-            alert('Bid refunded successfully!');
+            notify({
+                type: 'success',
+                title: 'Bid refunded',
+                message: 'Your locked bid funds were returned.',
+            });
             window.location.reload();
         } catch (err: any) {
-            alert(err.message || 'Failed to refund bid');
+            notify({
+                type: 'error',
+                title: 'Could not refund bid',
+                message: err.message || 'Please try again in a moment.',
+            });
         }
     };
 
     const handlePlaceBid = async () => {
         if (!connected) {
-            alert('Please connect your wallet first');
+            notify({
+                type: 'info',
+                title: 'Connect your wallet',
+                message: 'Connect a devnet wallet before placing a private bid.',
+            });
             return;
         }
 
         const amount = parseFloat(bidAmount);
         if (isNaN(amount) || amount <= 0) {
-            alert('Please enter a valid bid amount');
+            notify({
+                type: 'error',
+                title: 'Enter a bid amount',
+                message: 'Use a positive SOL amount for your encrypted bid.',
+            });
             return;
         }
 
         // Check against reserve price
         const reserveSOL = lamportsToSol(auction.reservePrice.toNumber());
         if (amount < reserveSOL) {
-            alert(`Bid must be at least ${reserveSOL} SOL`);
+            notify({
+                type: 'error',
+                title: 'Bid below reserve',
+                message: `This auction requires at least ${reserveSOL} SOL.`,
+            });
             return;
         }
 
         try {
+            setBidProgress('Encrypting your bid locally with Arcium.');
+            notify({
+                type: 'info',
+                title: 'Private bid setup',
+                message: 'You will approve storage transactions first, then the final transaction that locks your bid amount.',
+                duration: 7600,
+            });
             const result = await placeBid({
                 auctionPda: auctionPda!,
                 bidAmount: amount * 1_000_000_000, // Convert to lamports
                 tokenMint: DEFAULT_MINT,
+                onProgress: (message) => {
+                    setBidProgress(message);
+                    notify({
+                        type: 'info',
+                        title: 'Wallet approval needed',
+                        message,
+                        duration: 4200,
+                    });
+                },
             });
 
             const signature = (result as any).signature || (result as unknown as string);
@@ -152,10 +195,20 @@ const AuctionDetails = () => {
                 date: Date.now(),
                 status: 'confirmed'
             });
-            alert('Bid placed successfully! Your bid is now encrypted and private.');
+            notify({
+                type: 'success',
+                title: 'Bid placed privately',
+                message: 'Your bid amount is locked and the encrypted bid is ready for Arcium comparison.',
+            });
             setBidAmount('');
+            setBidProgress('');
         } catch (err: any) {
-            alert(err.message || 'Failed to place bid');
+            setBidProgress('');
+            notify({
+                type: 'error',
+                title: 'Bid was not placed',
+                message: err.message || 'The wallet request was rejected or the transaction failed.',
+            });
         }
     };
 
@@ -319,12 +372,12 @@ const AuctionDetails = () => {
                         </div>
 
 
-                        {/* Creator Management Actions */}
+                        {/* Creator Actions */}
                         {publicKey?.equals(auction.authority) && (
                             <div className="bg-background-elevated p-6 rounded-xl border border-primary-purple border-dashed">
                                 <h3 className="text-lg font-semibold text-text-primary mb-2 flex items-center">
                                     <Shield className="w-5 h-5 mr-2 text-primary-purple" />
-                                    Creator Management
+                                    Creator Actions
                                 </h3>
 
                                 <div className="space-y-3 mt-4">
@@ -342,17 +395,14 @@ const AuctionDetails = () => {
                                         </button>
                                     )}
                                     {auction.status.active && (
-                                        <button
-                                            onClick={handleCloseAuction}
-                                            disabled={closing}
-                                            className="w-full py-3 bg-background-main text-status-error border border-status-error rounded-lg font-semibold hover:bg-status-error hover:text-white transition-all flex items-center justify-center space-x-2"
-                                        >
-                                            {closing ? (
-                                                <div className="w-5 h-5 border-2 border-status-error border-t-transparent rounded-full animate-spin"></div>
-                                            ) : (
-                                                <span>Close Auction (Manual)</span>
-                                            )}
-                                        </button>
+                                        <div className="rounded-lg border border-border bg-background-main p-4">
+                                            <div className="flex items-start space-x-3">
+                                                <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent-cyan" />
+                                                <p className="text-sm leading-5 text-text-secondary">
+                                                    Manual closing is disabled. When the auction ends, the winner should be finalized through Arcium's encrypted comparison flow.
+                                                </p>
+                                            </div>
+                                        </div>
                                     )}
                                     {auction.status.closed && (
                                         <button
@@ -438,7 +488,7 @@ const AuctionDetails = () => {
 
                                 <p className="text-sm text-text-secondary mb-4">
                                     Your bid will be encrypted using Arcium MPC before submission.
-                                    Only you and the auction creator will see it after the auction ends.
+                                    The wallet approvals before the final bid transaction store the encrypted bid privately on-chain.
                                 </p>
 
                                 <div className="space-y-4">
@@ -480,6 +530,11 @@ const AuctionDetails = () => {
                                             'Connect Wallet to Bid'
                                         )}
                                     </button>
+                                    {bidProgress && (
+                                        <div className="rounded-lg border border-accent-cyan border-opacity-40 bg-background-main p-3 text-sm text-text-secondary">
+                                            {bidProgress}
+                                        </div>
+                                    )}
 
                                 </div>
                             </div>
