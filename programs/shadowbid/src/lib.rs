@@ -478,7 +478,7 @@ pub struct CreateAuction<'info> {
         seeds = [b"auction", authority.key().as_ref(), auction_id.to_le_bytes().as_ref()],
         bump
     )]
-    pub auction: Account<'info, Auction>,
+    pub auction: Box<Account<'info, Auction>>,
 
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -928,29 +928,29 @@ pub struct CompareBids<'info> {
         seeds = [b"bid", auction.key().as_ref(), bid_a.bidder.as_ref()],
         bump = bid_a.bump
     )]
-    pub bid_a: Account<'info, Bid>,
+    pub bid_a: Box<Account<'info, Bid>>,
 
     #[account(
         mut,
         seeds = [b"bid", auction.key().as_ref(), bid_b.bidder.as_ref()],
         bump = bid_b.bump
     )]
-    pub bid_b: Account<'info, Bid>,
+    pub bid_b: Box<Account<'info, Bid>>,
 
     #[account(
         seeds = [b"bid_ciphertext", auction.key().as_ref(), bid_a.bidder.as_ref()],
         bump = bid_a_ciphertext.bump
     )]
-    pub bid_a_ciphertext: Account<'info, BidCiphertext>,
+    pub bid_a_ciphertext: Box<Account<'info, BidCiphertext>>,
 
     #[account(
         seeds = [b"bid_ciphertext", auction.key().as_ref(), bid_b.bidder.as_ref()],
         bump = bid_b_ciphertext.bump
     )]
-    pub bid_b_ciphertext: Account<'info, BidCiphertext>,
+    pub bid_b_ciphertext: Box<Account<'info, BidCiphertext>>,
 
     #[account(address = derive_mxe_pda!())]
-    pub mxe_account: Account<'info, MXEAccount>,
+    pub mxe_account: Box<Account<'info, MXEAccount>>,
 
     /// CHECK: Arcium signer PDA.
     #[account(address = derive_sign_pda!())]
@@ -969,16 +969,16 @@ pub struct CompareBids<'info> {
     pub computation_account: UncheckedAccount<'info>,
 
     #[account(address = derive_comp_def_pda!(COMPARE_BIDS_COMP_DEF_OFFSET))]
-    pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
+    pub comp_def_account: Box<Account<'info, ComputationDefinitionAccount>>,
 
     #[account(mut, address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet))]
-    pub cluster_account: Account<'info, Cluster>,
+    pub cluster_account: Box<Account<'info, Cluster>>,
 
     #[account(mut, address = ARCIUM_FEE_POOL_ACCOUNT_ADDRESS)]
-    pub pool_account: Account<'info, FeePool>,
+    pub pool_account: Box<Account<'info, FeePool>>,
 
     #[account(mut, address = ARCIUM_CLOCK_ACCOUNT_ADDRESS)]
-    pub clock_account: Account<'info, ClockAccount>,
+    pub clock_account: Box<Account<'info, ClockAccount>>,
 
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
