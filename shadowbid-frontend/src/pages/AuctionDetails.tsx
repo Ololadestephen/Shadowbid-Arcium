@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Lock, Clock, Shield, ArrowLeft, User, Calendar, DollarSign, RefreshCw, Trophy, Info, Cpu } from 'lucide-react';
 
@@ -11,6 +11,12 @@ import { useNotifications } from '../components/Notifications';
 
 // Use Native SOL Mint
 const DEFAULT_MINT = NATIVE_MINT;
+
+type QueuedComparison = {
+    signature: string;
+    computationOffset: string;
+    queuedAt: number;
+};
 
 const AuctionDetails = () => {
     const { id } = useParams();
@@ -31,11 +37,14 @@ const AuctionDetails = () => {
     const [bidAmount, setBidAmount] = useState('');
     const [bidProgress, setBidProgress] = useState('');
     const [refreshingStatus, setRefreshingStatus] = useState(false);
-    const [queuedComparison, setQueuedComparison] = useState<{
-        signature: string;
-        computationOffset: string;
-        queuedAt: number;
-    } | null>(null);
+    const pendingComparisonKey = useMemo(() => (
+        id ? `shadowbid:pending-comparison:${id}` : null
+    ), [id]);
+    const [queuedComparison, setQueuedComparison] = useState<QueuedComparison | null>(() => {
+        if (!id || typeof window === 'undefined') return null;
+        const stored = window.localStorage.getItem(`shadowbid:pending-comparison:${id}`);
+        return stored ? JSON.parse(stored) as QueuedComparison : null;
+    });
 
     // Extract image URL and cleaned description - moved to top to follow Rules of Hooks
     const { description: displayDescription, imageUrl } = useMemo(() => {
@@ -68,6 +77,22 @@ const AuctionDetails = () => {
         return bids.filter((bid: any) => Object.keys(bid.account.status)[0].toLowerCase() === 'active');
     }, [bids]);
 
+    useEffect(() => {
+        if (!pendingComparisonKey || typeof window === 'undefined') return;
+
+        if (auction?.status?.closed) {
+            window.localStorage.removeItem(pendingComparisonKey);
+            setQueuedComparison(null);
+            return;
+        }
+
+        if (queuedComparison) {
+            window.localStorage.setItem(pendingComparisonKey, JSON.stringify(queuedComparison));
+        } else {
+            window.localStorage.removeItem(pendingComparisonKey);
+        }
+    }, [auction?.status, pendingComparisonKey, queuedComparison]);
+
     const refreshAuctionStatus = async (showNotification = true) => {
         if (!auctionPda) return null;
         setRefreshingStatus(true);
@@ -75,6 +100,10 @@ const AuctionDetails = () => {
             const [freshAuction] = await Promise.all([refetchAuction(), refetchBids()]);
             if (showNotification && freshAuction) {
                 if (freshAuction.status.closed) {
+                    if (pendingComparisonKey) {
+                        window.localStorage.removeItem(pendingComparisonKey);
+                    }
+                    setQueuedComparison(null);
                     notify({
                         type: 'success',
                         title: 'Auction finalized',
@@ -188,6 +217,15 @@ const AuctionDetails = () => {
             return;
         }
 
+        if (queuedComparison) {
+            notify({
+                type: 'info',
+                title: 'Arcium already queued',
+                message: 'Use Refresh status to check the existing queued comparison before signing another one.',
+            });
+            return;
+        }
+
         try {
             notify({
                 type: 'info',
@@ -203,11 +241,15 @@ const AuctionDetails = () => {
                 waitForCallback: false,
             });
 
-            setQueuedComparison({
+            const pendingComparison = {
                 signature: result.signature,
                 computationOffset: result.computationOffset.toString(),
                 queuedAt: Date.now(),
-            });
+            };
+            setQueuedComparison(pendingComparison);
+            if (pendingComparisonKey) {
+                window.localStorage.setItem(pendingComparisonKey, JSON.stringify(pendingComparison));
+            }
 
             notify({
                 type: 'success',
@@ -564,8 +606,8 @@ const AuctionDetails = () => {
                                             <div className="space-y-3">
                                                 <button
                                                     onClick={handleFinalizeWithArcium}
-                                                    disabled={finalizing || activeBids.length !== 2}
-                                                    className={`w-full py-3 rounded-lg font-semibold transition-all flex items-center justify-center space-x-2 ${activeBids.length === 2
+                                                    disabled={finalizing || Boolean(queuedComparison) || activeBids.length !== 2}
+                                                    className={`w-full py-3 rounded-lg font-semibold transition-all flex items-center justify-center space-x-2 ${activeBids.length === 2 && !queuedComparison
                                                         ? 'bg-primary-purple text-white hover:bg-opacity-90'
                                                         : 'bg-background-main text-text-disabled cursor-not-allowed border border-border'
                                                         }`}
@@ -578,7 +620,7 @@ const AuctionDetails = () => {
                                                     ) : (
                                                         <>
                                                             <Cpu className="w-5 h-5" />
-                                                            <span>Finalize with Arcium</span>
+                                                            <span>{queuedComparison ? 'Arcium queued' : 'Finalize with Arcium'}</span>
                                                         </>
                                                     )}
                                                 </button>

@@ -337,7 +337,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d8a6c63063e9587ece79b959de6313cba16c42bd0db2297885b28456bf17ed0"
 dependencies = [
  "aes",
- "arcis-interface",
+ "arcis-interface 0.7.0",
  "arcis-internal-expr-macro",
  "arcium-core-utils",
  "arcium-primitives",
@@ -385,6 +385,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "arcis-interface"
+version = "0.9.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc7e75647f776ee6de98313ebebcfe0867ad261af0a6702baad7ab93b0d5d5a3"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "arcis-internal-expr-macro"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -404,7 +414,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "395ba09f2d48c12801edbb33a8677c136e5690e7abae60f06d8fecfe6ffe8302"
 dependencies = [
  "arcis-compiler",
- "arcis-interface",
+ "arcis-interface 0.7.0",
  "cargo_metadata",
  "ff",
  "indexmap 2.13.0",
@@ -427,9 +437,9 @@ dependencies = [
 
 [[package]]
 name = "arcium-anchor"
-version = "0.7.0"
+version = "0.9.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e0100f675bb1e64a298fe97128f3c2fdc94f849a85b3d96c978e487d00b12a3"
+checksum = "e68219128b74de0446bd4edf14cf6752e78f50fbd189491da28f07aca76d213e"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
@@ -442,13 +452,14 @@ dependencies = [
 
 [[package]]
 name = "arcium-client"
-version = "0.7.0"
+version = "0.9.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "593aaa8f46358feb34e606c9b293e6c88828cb38568b0f254a59149eb729f850"
+checksum = "ab5a85818af0851396917869fafbf56aedc1ba1020553071a189f6dc51e9e646"
 dependencies = [
  "anchor-lang",
  "bytemuck",
  "const-crypto",
+ "rand 0.8.5",
  "solana-address-lookup-table-interface",
  "solana-alt-bn128-bls",
  "solana-program",
@@ -481,11 +492,11 @@ dependencies = [
 
 [[package]]
 name = "arcium-macros"
-version = "0.7.0"
+version = "0.9.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53f69a60cb9f22cca07aa080075c888a1a6d00b5e1c91083959fae5ea64a0500"
+checksum = "df392e5430630127e3eb09715d3a784bd16cca83567eb66f1f2f1a8344376426"
 dependencies = [
- "arcis-interface",
+ "arcis-interface 0.9.7",
  "convert_case",
  "proc-macro2",
  "quote",

@@ -2820,7 +2820,7 @@ export type Shadowbid = {
             "name": "active"
           },
           {
-            "name": "recovery"
+            "name": "migration"
           }
         ]
       }
