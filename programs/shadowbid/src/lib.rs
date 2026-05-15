@@ -1156,6 +1156,7 @@ impl CallbackCompAccs for CompareBidsCallback<'_> {
         extra_accs: &[CallbackAccount],
     ) -> anchor_lang::Result<CallbackInstruction> {
         let mut accounts = Vec::with_capacity(extra_accs.len() + 6);
+        accounts.extend_from_slice(extra_accs);
         accounts.push(CallbackAccount {
             pubkey: ARCIUM_PROG_ID,
             is_writable: false,
@@ -1180,7 +1181,6 @@ impl CallbackCompAccs for CompareBidsCallback<'_> {
             pubkey: anchor_lang::solana_program::sysvar::instructions::ID,
             is_writable: false,
         });
-        accounts.extend_from_slice(extra_accs);
 
         Ok(CallbackInstruction {
             program_id: crate::ID,
