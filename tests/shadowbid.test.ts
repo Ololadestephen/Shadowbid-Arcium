@@ -9,6 +9,7 @@ import {
 } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
   createMint,
   createAccount,
   mintTo,
@@ -43,6 +44,56 @@ describe("ShadowBid Blind Auctions", () => {
   let escrowPda: PublicKey;
 
   const encryptedBidFixture = (fill: number) => Buffer.from(Array(1104).fill(fill));
+  const MAX_CIPHERTEXT_CHUNK_LEN = 800;
+
+  const getBidCiphertextPda = async (bidder: PublicKey) =>
+    PublicKey.findProgramAddress(
+      [
+        Buffer.from("bid_ciphertext"),
+        auctionPda.toBuffer(),
+        bidder.toBuffer(),
+      ],
+      program.programId
+    );
+
+  const uploadBidCiphertext = async (
+    bidder: Keypair,
+    encryptedBid: Buffer
+  ): Promise<PublicKey> => {
+    const [bidCiphertextPda] = await getBidCiphertextPda(bidder.publicKey);
+
+    await program.methods
+      .initBidCiphertext()
+      .accounts({
+        auction: auctionPda,
+        bidCiphertext: bidCiphertextPda,
+        bidder: bidder.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([bidder])
+      .rpc();
+
+    for (
+      let offset = 0;
+      offset < encryptedBid.length;
+      offset += MAX_CIPHERTEXT_CHUNK_LEN
+    ) {
+      await program.methods
+        .writeBidCiphertextChunk(
+          offset,
+          encryptedBid.subarray(offset, offset + MAX_CIPHERTEXT_CHUNK_LEN)
+        )
+        .accounts({
+          auction: auctionPda,
+          bidCiphertext: bidCiphertextPda,
+          bidder: bidder.publicKey,
+        })
+        .signers([bidder])
+        .rpc();
+    }
+
+    return bidCiphertextPda;
+  };
 
   before(async () => {
     // Initialize test accounts
@@ -262,6 +313,7 @@ describe("ShadowBid Blind Auctions", () => {
         ],
         program.programId
       );
+      const bidCiphertextPda = await uploadBidCiphertext(bidder1, encryptedBid);
 
       // Create escrow ATA for the PDA
       const escrowTokenAccountInfo = await getOrCreateAssociatedTokenAccount(
@@ -274,15 +326,18 @@ describe("ShadowBid Blind Auctions", () => {
       const escrowTokenAccount = escrowTokenAccountInfo.address;
 
       const tx = await program.methods
-        .placeBid(bidAmount, encryptedBid, proof, arciumPublicKey)
+        .placeBid(bidAmount, proof, arciumPublicKey)
         .accounts({
           auction: auctionPda,
           bid: bidPda,
+          bidCiphertext: bidCiphertextPda,
           bidder: bidder1.publicKey,
           bidderTokenAccount: bidder1TokenAccount,
           escrowTokenAccount,
+          escrowAuthority: escrowPda,
           tokenMint: mint,
           tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
         })
         .signers([bidder1])
@@ -313,6 +368,7 @@ describe("ShadowBid Blind Auctions", () => {
         ],
         program.programId
       );
+      const bidCiphertextPda = await uploadBidCiphertext(bidder2, encryptedBid);
 
       const escrowTokenAccountInfo = await getOrCreateAssociatedTokenAccount(
         provider.connection,
@@ -324,15 +380,18 @@ describe("ShadowBid Blind Auctions", () => {
       const escrowTokenAccount = escrowTokenAccountInfo.address;
 
       const tx = await program.methods
-        .placeBid(bidAmount, encryptedBid, proof, arciumPublicKey)
+        .placeBid(bidAmount, proof, arciumPublicKey)
         .accounts({
           auction: auctionPda,
           bid: bidPda,
+          bidCiphertext: bidCiphertextPda,
           bidder: bidder2.publicKey,
           bidderTokenAccount: bidder2TokenAccount,
           escrowTokenAccount,
+          escrowAuthority: escrowPda,
           tokenMint: mint,
           tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
         })
         .signers([bidder2])
@@ -354,6 +413,8 @@ describe("ShadowBid Blind Auctions", () => {
         ],
         program.programId
       );
+      const encryptedBid = encryptedBidFixture(5);
+      const bidCiphertextPda = await uploadBidCiphertext(bidder3, encryptedBid);
 
       // We need escrowTokenAccount for the failing call too, or at least a dummy
       const escrowTokenAccountInfo = await getOrCreateAssociatedTokenAccount(
@@ -369,18 +430,20 @@ describe("ShadowBid Blind Auctions", () => {
         await program.methods
           .placeBid(
             bidAmount,
-            encryptedBidFixture(5),
             Buffer.from(Array(32).fill(6)),
             Array(32).fill(10)
           )
           .accounts({
             auction: auctionPda,
             bid: bidPda,
+            bidCiphertext: bidCiphertextPda,
             bidder: bidder3.publicKey,
             bidderTokenAccount: bidder3TokenAccount,
             escrowTokenAccount,
+            escrowAuthority: escrowPda,
             tokenMint: mint,
             tokenProgram: TOKEN_PROGRAM_ID,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
           })
           .signers([bidder3])

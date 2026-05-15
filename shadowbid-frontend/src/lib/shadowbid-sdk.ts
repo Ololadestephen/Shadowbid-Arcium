@@ -36,6 +36,7 @@ import {
 
 const BID_INPUT_CIPHERTEXTS = 33;
 const ARCIUM_SHARED_BID_INPUT_LEN = 32 + 16 + BID_INPUT_CIPHERTEXTS * 32;
+const MAX_CIPHERTEXT_CHUNK_LEN = 800;
 
 // Arcium encryption result interface
 interface ArciumEncryptionResult {
@@ -139,6 +140,10 @@ export class ShadowBidClient {
 
     // Derive bid PDA
     const [bidPda, _bidBump] = await this.getBidPDA(params.auctionPda, bidder);
+    const [bidCiphertextPda] = await this.getBidCiphertextPDA(
+      params.auctionPda,
+      bidder
+    );
 
     // Derive escrow PDA
     const [escrowPda, _escrowBump] = await this.getEscrowPDA(params.auctionPda);
@@ -217,16 +222,50 @@ export class ShadowBidClient {
     console.log("=================================");
 
     try {
+      const bidCiphertextInfo = await this.provider.connection.getAccountInfo(
+        bidCiphertextPda
+      );
+      if (!bidCiphertextInfo) {
+        await (this.program.methods as any)
+          .initBidCiphertext()
+          .accounts({
+            auction: params.auctionPda,
+            bidCiphertext: bidCiphertextPda,
+            bidder,
+            systemProgram: SystemProgram.programId,
+          })
+          .rpc();
+      }
+
+      for (
+        let offset = 0;
+        offset < encryptedBid.ciphertext.length;
+        offset += MAX_CIPHERTEXT_CHUNK_LEN
+      ) {
+        const chunk = encryptedBid.ciphertext.subarray(
+          offset,
+          offset + MAX_CIPHERTEXT_CHUNK_LEN
+        );
+        await (this.program.methods as any)
+          .writeBidCiphertextChunk(offset, Buffer.from(chunk))
+          .accounts({
+            auction: params.auctionPda,
+            bidCiphertext: bidCiphertextPda,
+            bidder,
+          })
+          .rpc();
+      }
+
       const tx = await (this.program.methods as any)
         .placeBid(
           new BN(params.bidAmount),
-          Buffer.from(encryptedBid.ciphertext),
           Buffer.from(encryptedBid.proof),
           Array.from(encryptedBid.publicKey)
         )
         .accounts({
           auction: params.auctionPda,
           bid: bidPda,
+          bidCiphertext: bidCiphertextPda,
           bidder: bidder,
           bidderTokenAccount: bidderTokenAccount,
           escrowTokenAccount: escrowTokenAccount,
@@ -299,6 +338,10 @@ export class ShadowBidClient {
       [Buffer.from("ArciumSignerAccount")],
       this.program.programId
     );
+    const [bidA, bidB] = await Promise.all([
+      (this.program.account as any).bid.fetch(params.bidAPda),
+      (this.program.account as any).bid.fetch(params.bidBPda),
+    ]);
 
     const tx = await (this.program.methods as any)
       .compareBids(
@@ -310,6 +353,8 @@ export class ShadowBidClient {
         authority: auction.authority,
         bidA: params.bidAPda,
         bidB: params.bidBPda,
+        bidACiphertext: bidA.bidCiphertext,
+        bidBCiphertext: bidB.bidCiphertext,
         mxeAccount: getMXEAccAddress(this.program.programId),
         signPdaAccount,
         mempoolAccount: getMempoolAccAddress(arciumEnv.arciumClusterOffset),
@@ -523,6 +568,16 @@ export class ShadowBidClient {
   async getEscrowPDA(auctionPda: PublicKey): Promise<[PublicKey, number]> {
     return await PublicKey.findProgramAddress(
       [Buffer.from("escrow"), auctionPda.toBuffer()],
+      this.program.programId
+    );
+  }
+
+  async getBidCiphertextPDA(
+    auctionPda: PublicKey,
+    bidder: PublicKey
+  ): Promise<[PublicKey, number]> {
+    return await PublicKey.findProgramAddress(
+      [Buffer.from("bid_ciphertext"), auctionPda.toBuffer(), bidder.toBuffer()],
       this.program.programId
     );
   }

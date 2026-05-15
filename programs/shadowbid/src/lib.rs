@@ -12,9 +12,10 @@ use arcium_macros::circuit_hash;
 
 const BID_INPUT_CIPHERTEXTS: usize = 33;
 const ARCIUM_SHARED_BID_INPUT_LEN: usize = 32 + 16 + (BID_INPUT_CIPHERTEXTS * 32);
-const BID_ENCRYPTED_DATA_OFFSET: u32 = 8 + 32 + 32 + 8 + 32 + 4;
+const BID_CIPHERTEXT_DATA_OFFSET: u32 = 8 + 32 + 32 + 4;
 const COMPARE_BIDS_COMP_DEF_OFFSET: u32 = arcium_anchor::comp_def_offset("compare_bids");
 const MIN_ARCIUM_PROOF_LEN: usize = 32;
+const MAX_CIPHERTEXT_CHUNK_LEN: usize = 800;
 
 declare_id!("EkfGifLr2z1zyVsqBWekmRnzGcfy45KzdNpSZbFm4yuy");
 
@@ -82,11 +83,42 @@ pub mod shadowbid {
         Ok(())
     }
 
+    pub fn init_bid_ciphertext(ctx: Context<InitBidCiphertext>) -> anchor_lang::Result<()> {
+        let ciphertext = &mut ctx.accounts.bid_ciphertext;
+        ciphertext.auction = ctx.accounts.auction.key();
+        ciphertext.bidder = ctx.accounts.bidder.key();
+        ciphertext.data = Vec::new();
+        ciphertext.bump = ctx.bumps.bid_ciphertext;
+        Ok(())
+    }
+
+    pub fn write_bid_ciphertext_chunk(
+        ctx: Context<WriteBidCiphertextChunk>,
+        offset: u16,
+        chunk: Vec<u8>,
+    ) -> anchor_lang::Result<()> {
+        require!(
+            chunk.len() <= MAX_CIPHERTEXT_CHUNK_LEN,
+            ErrorCode::CiphertextChunkTooLarge
+        );
+        let ciphertext = &mut ctx.accounts.bid_ciphertext;
+        let offset = offset as usize;
+        if offset == 0 {
+            ciphertext.data.clear();
+        }
+        require!(ciphertext.data.len() == offset, ErrorCode::InvalidCiphertextOffset);
+        require!(
+            ciphertext.data.len() + chunk.len() <= ARCIUM_SHARED_BID_INPUT_LEN,
+            ErrorCode::InvalidEncryptedBid
+        );
+        ciphertext.data.extend_from_slice(&chunk);
+        Ok(())
+    }
+
     /// Place an encrypted bid (bid amount derived from token transfer)
     pub fn place_bid(
         ctx: Context<PlaceBid>,
         amount: u64,
-        encrypted_bid: Vec<u8>,      // Encrypted bid data from Arcium
         arcium_proof: Vec<u8>,       // Zero-knowledge proof of bid validity
         arcium_public_key: [u8; 32], // Ephemeral public key for Arcium encryption
     ) -> anchor_lang::Result<()> {
@@ -108,7 +140,7 @@ pub mod shadowbid {
         );
         require!(amount >= auction.reserve_price, ErrorCode::BidBelowReserve);
         require!(
-            encrypted_bid.len() == ARCIUM_SHARED_BID_INPUT_LEN,
+            ctx.accounts.bid_ciphertext.data.len() == ARCIUM_SHARED_BID_INPUT_LEN,
             ErrorCode::InvalidEncryptedBid
         );
         require!(
@@ -126,9 +158,9 @@ pub mod shadowbid {
         bid.bidder = ctx.accounts.bidder.key();
         bid.bid_amount = amount_to_transfer;
         bid.previous_bid = auction.last_bid; // Linked list: point to previous bid
+        bid.bid_ciphertext = ctx.accounts.bid_ciphertext.key();
 
-        let encrypted_bid_hash = hash_encrypted_bid(&encrypted_bid);
-        bid.encrypted_bid_data = encrypted_bid;
+        let encrypted_bid_hash = hash_encrypted_bid(&ctx.accounts.bid_ciphertext.data);
         bid.arcium_proof = arcium_proof;
         bid.arcium_public_key = arcium_public_key;
         bid.timestamp = clock.unix_timestamp;
@@ -212,20 +244,32 @@ pub mod shadowbid {
             ErrorCode::NoValidBids
         );
         require!(
-            ctx.accounts.bid_a.encrypted_bid_data.len() == ARCIUM_SHARED_BID_INPUT_LEN
-                && ctx.accounts.bid_b.encrypted_bid_data.len() == ARCIUM_SHARED_BID_INPUT_LEN,
+            ctx.accounts.bid_a.bid_ciphertext == ctx.accounts.bid_a_ciphertext.key()
+                && ctx.accounts.bid_b.bid_ciphertext == ctx.accounts.bid_b_ciphertext.key(),
+            ErrorCode::InvalidEncryptedBid
+        );
+        require!(
+            ctx.accounts.bid_a_ciphertext.auction == auction.key()
+                && ctx.accounts.bid_b_ciphertext.auction == auction.key()
+                && ctx.accounts.bid_a_ciphertext.bidder == ctx.accounts.bid_a.bidder
+                && ctx.accounts.bid_b_ciphertext.bidder == ctx.accounts.bid_b.bidder,
+            ErrorCode::InvalidEncryptedBid
+        );
+        require!(
+            ctx.accounts.bid_a_ciphertext.data.len() == ARCIUM_SHARED_BID_INPUT_LEN
+                && ctx.accounts.bid_b_ciphertext.data.len() == ARCIUM_SHARED_BID_INPUT_LEN,
             ErrorCode::InvalidEncryptedBid
         );
 
         let args = ArgBuilder::new()
             .account(
-                ctx.accounts.bid_a.key(),
-                BID_ENCRYPTED_DATA_OFFSET,
+                ctx.accounts.bid_a_ciphertext.key(),
+                BID_CIPHERTEXT_DATA_OFFSET,
                 ARCIUM_SHARED_BID_INPUT_LEN as u32,
             )
             .account(
-                ctx.accounts.bid_b.key(),
-                BID_ENCRYPTED_DATA_OFFSET,
+                ctx.accounts.bid_b_ciphertext.key(),
+                BID_CIPHERTEXT_DATA_OFFSET,
                 ARCIUM_SHARED_BID_INPUT_LEN as u32,
             )
             .build();
@@ -450,6 +494,47 @@ pub struct CreateAuction<'info> {
 }
 
 #[derive(Accounts)]
+pub struct InitBidCiphertext<'info> {
+    #[account(
+        seeds = [b"auction", auction.authority.as_ref(), auction.auction_id.to_le_bytes().as_ref()],
+        bump = auction.bump
+    )]
+    pub auction: Account<'info, Auction>,
+
+    #[account(
+        init,
+        payer = bidder,
+        space = 8 + BidCiphertext::INIT_SPACE,
+        seeds = [b"bid_ciphertext", auction.key().as_ref(), bidder.key().as_ref()],
+        bump
+    )]
+    pub bid_ciphertext: Account<'info, BidCiphertext>,
+
+    #[account(mut)]
+    pub bidder: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct WriteBidCiphertextChunk<'info> {
+    #[account(
+        seeds = [b"auction", auction.authority.as_ref(), auction.auction_id.to_le_bytes().as_ref()],
+        bump = auction.bump
+    )]
+    pub auction: Account<'info, Auction>,
+
+    #[account(
+        mut,
+        seeds = [b"bid_ciphertext", auction.key().as_ref(), bidder.key().as_ref()],
+        bump = bid_ciphertext.bump
+    )]
+    pub bid_ciphertext: Account<'info, BidCiphertext>,
+
+    pub bidder: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct PlaceBid<'info> {
     #[account(
         mut,
@@ -466,6 +551,12 @@ pub struct PlaceBid<'info> {
         bump
     )]
     pub bid: Account<'info, Bid>,
+
+    #[account(
+        seeds = [b"bid_ciphertext", auction.key().as_ref(), bidder.key().as_ref()],
+        bump = bid_ciphertext.bump
+    )]
+    pub bid_ciphertext: Account<'info, BidCiphertext>,
 
     #[account(mut)]
     pub bidder: Signer<'info>,
@@ -635,13 +726,22 @@ pub struct Bid {
     pub bidder: Pubkey,
     pub bid_amount: u64,
     pub previous_bid: Pubkey, // Pointer to the previous bid in the list
-    #[max_len(1104)]
-    pub encrypted_bid_data: Vec<u8>,
+    pub bid_ciphertext: Pubkey,
     #[max_len(256)]
     pub arcium_proof: Vec<u8>,
     pub arcium_public_key: [u8; 32],
     pub timestamp: i64,
     pub status: BidStatus,
+    pub bump: u8,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct BidCiphertext {
+    pub auction: Pubkey,
+    pub bidder: Pubkey,
+    #[max_len(1104)]
+    pub data: Vec<u8>,
     pub bump: u8,
 }
 
@@ -769,6 +869,10 @@ pub enum ErrorCode {
     ArciumCallbackRequired,
     #[msg("Arcium MXE account is not assigned to a cluster")]
     ClusterNotSet,
+    #[msg("Ciphertext chunk is too large")]
+    CiphertextChunkTooLarge,
+    #[msg("Ciphertext chunk offset does not match current ciphertext length")]
+    InvalidCiphertextOffset,
 }
 
 // ============================================================================
@@ -832,6 +936,18 @@ pub struct CompareBids<'info> {
         bump = bid_b.bump
     )]
     pub bid_b: Account<'info, Bid>,
+
+    #[account(
+        seeds = [b"bid_ciphertext", auction.key().as_ref(), bid_a.bidder.as_ref()],
+        bump = bid_a_ciphertext.bump
+    )]
+    pub bid_a_ciphertext: Account<'info, BidCiphertext>,
+
+    #[account(
+        seeds = [b"bid_ciphertext", auction.key().as_ref(), bid_b.bidder.as_ref()],
+        bump = bid_b_ciphertext.bump
+    )]
+    pub bid_b_ciphertext: Account<'info, BidCiphertext>,
 
     #[account(address = derive_mxe_pda!())]
     pub mxe_account: Account<'info, MXEAccount>,

@@ -266,6 +266,76 @@ export type Shadowbid = {
           }
         },
         {
+          "name": "bidACiphertext",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100,
+                  95,
+                  99,
+                  105,
+                  112,
+                  104,
+                  101,
+                  114,
+                  116,
+                  101,
+                  120,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bid_a.bidder",
+                "account": "bid"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bidBCiphertext",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100,
+                  95,
+                  99,
+                  105,
+                  112,
+                  104,
+                  101,
+                  114,
+                  116,
+                  101,
+                  120,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bid_b.bidder",
+                "account": "bid"
+              }
+            ]
+          }
+        },
+        {
           "name": "mxeAccount"
         },
         {
@@ -571,6 +641,95 @@ export type Shadowbid = {
       ]
     },
     {
+      "name": "initBidCiphertext",
+      "discriminator": [
+        148,
+        81,
+        71,
+        95,
+        207,
+        63,
+        31,
+        4
+      ],
+      "accounts": [
+        {
+          "name": "auction",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  117,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction.authority",
+                "account": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "auction.auction_id",
+                "account": "auction"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bidCiphertext",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100,
+                  95,
+                  99,
+                  105,
+                  112,
+                  104,
+                  101,
+                  114,
+                  116,
+                  101,
+                  120,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bidder"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bidder",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initCompareBidsCompDef",
       "discriminator": [
         86,
@@ -671,6 +830,40 @@ export type Shadowbid = {
                   98,
                   105,
                   100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bidder"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bidCiphertext",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100,
+                  95,
+                  99,
+                  105,
+                  112,
+                  104,
+                  101,
+                  114,
+                  116,
+                  101,
+                  120,
+                  116
                 ]
               },
               {
@@ -825,10 +1018,6 @@ export type Shadowbid = {
         {
           "name": "amount",
           "type": "u64"
-        },
-        {
-          "name": "encryptedBid",
-          "type": "bytes"
         },
         {
           "name": "arciumProof",
@@ -1284,6 +1473,99 @@ export type Shadowbid = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "writeBidCiphertextChunk",
+      "discriminator": [
+        40,
+        217,
+        169,
+        126,
+        82,
+        27,
+        22,
+        61
+      ],
+      "accounts": [
+        {
+          "name": "auction",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  117,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction.authority",
+                "account": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "auction.auction_id",
+                "account": "auction"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bidCiphertext",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100,
+                  95,
+                  99,
+                  105,
+                  112,
+                  104,
+                  101,
+                  114,
+                  116,
+                  101,
+                  120,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bidder"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bidder",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "offset",
+          "type": "u16"
+        },
+        {
+          "name": "chunk",
+          "type": "bytes"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -1311,6 +1593,19 @@ export type Shadowbid = {
         145,
         180,
         88
+      ]
+    },
+    {
+      "name": "bidCiphertext",
+      "discriminator": [
+        31,
+        72,
+        220,
+        67,
+        56,
+        104,
+        63,
+        112
       ]
     },
     {
@@ -1592,6 +1887,16 @@ export type Shadowbid = {
       "code": 6023,
       "name": "clusterNotSet",
       "msg": "Arcium MXE account is not assigned to a cluster"
+    },
+    {
+      "code": 6024,
+      "name": "ciphertextChunkTooLarge",
+      "msg": "Ciphertext chunk is too large"
+    },
+    {
+      "code": 6025,
+      "name": "invalidCiphertextOffset",
+      "msg": "Ciphertext chunk offset does not match current ciphertext length"
     }
   ],
   "types": [
@@ -1857,8 +2162,8 @@ export type Shadowbid = {
             "type": "pubkey"
           },
           {
-            "name": "encryptedBidData",
-            "type": "bytes"
+            "name": "bidCiphertext",
+            "type": "pubkey"
           },
           {
             "name": "arciumProof",
@@ -1884,6 +2189,30 @@ export type Shadowbid = {
                 "name": "bidStatus"
               }
             }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "bidCiphertext",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "auction",
+            "type": "pubkey"
+          },
+          {
+            "name": "bidder",
+            "type": "pubkey"
+          },
+          {
+            "name": "data",
+            "type": "bytes"
           },
           {
             "name": "bump",

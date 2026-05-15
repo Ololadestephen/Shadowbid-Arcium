@@ -260,6 +260,76 @@
           }
         },
         {
+          "name": "bid_a_ciphertext",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100,
+                  95,
+                  99,
+                  105,
+                  112,
+                  104,
+                  101,
+                  114,
+                  116,
+                  101,
+                  120,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bid_a.bidder",
+                "account": "Bid"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bid_b_ciphertext",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100,
+                  95,
+                  99,
+                  105,
+                  112,
+                  104,
+                  101,
+                  114,
+                  116,
+                  101,
+                  120,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bid_b.bidder",
+                "account": "Bid"
+              }
+            ]
+          }
+        },
+        {
           "name": "mxe_account"
         },
         {
@@ -565,6 +635,95 @@
       ]
     },
     {
+      "name": "init_bid_ciphertext",
+      "discriminator": [
+        148,
+        81,
+        71,
+        95,
+        207,
+        63,
+        31,
+        4
+      ],
+      "accounts": [
+        {
+          "name": "auction",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  117,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction.authority",
+                "account": "Auction"
+              },
+              {
+                "kind": "account",
+                "path": "auction.auction_id",
+                "account": "Auction"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bid_ciphertext",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100,
+                  95,
+                  99,
+                  105,
+                  112,
+                  104,
+                  101,
+                  114,
+                  116,
+                  101,
+                  120,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bidder"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bidder",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "init_compare_bids_comp_def",
       "discriminator": [
         86,
@@ -665,6 +824,40 @@
                   98,
                   105,
                   100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bidder"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bid_ciphertext",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100,
+                  95,
+                  99,
+                  105,
+                  112,
+                  104,
+                  101,
+                  114,
+                  116,
+                  101,
+                  120,
+                  116
                 ]
               },
               {
@@ -819,10 +1012,6 @@
         {
           "name": "amount",
           "type": "u64"
-        },
-        {
-          "name": "encrypted_bid",
-          "type": "bytes"
         },
         {
           "name": "arcium_proof",
@@ -1278,6 +1467,99 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "write_bid_ciphertext_chunk",
+      "discriminator": [
+        40,
+        217,
+        169,
+        126,
+        82,
+        27,
+        22,
+        61
+      ],
+      "accounts": [
+        {
+          "name": "auction",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  117,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction.authority",
+                "account": "Auction"
+              },
+              {
+                "kind": "account",
+                "path": "auction.auction_id",
+                "account": "Auction"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bid_ciphertext",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100,
+                  95,
+                  99,
+                  105,
+                  112,
+                  104,
+                  101,
+                  114,
+                  116,
+                  101,
+                  120,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bidder"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bidder",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "offset",
+          "type": "u16"
+        },
+        {
+          "name": "chunk",
+          "type": "bytes"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -1305,6 +1587,19 @@
         145,
         180,
         88
+      ]
+    },
+    {
+      "name": "BidCiphertext",
+      "discriminator": [
+        31,
+        72,
+        220,
+        67,
+        56,
+        104,
+        63,
+        112
       ]
     },
     {
@@ -1586,6 +1881,16 @@
       "code": 6023,
       "name": "ClusterNotSet",
       "msg": "Arcium MXE account is not assigned to a cluster"
+    },
+    {
+      "code": 6024,
+      "name": "CiphertextChunkTooLarge",
+      "msg": "Ciphertext chunk is too large"
+    },
+    {
+      "code": 6025,
+      "name": "InvalidCiphertextOffset",
+      "msg": "Ciphertext chunk offset does not match current ciphertext length"
     }
   ],
   "types": [
@@ -1851,8 +2156,8 @@
             "type": "pubkey"
           },
           {
-            "name": "encrypted_bid_data",
-            "type": "bytes"
+            "name": "bid_ciphertext",
+            "type": "pubkey"
           },
           {
             "name": "arcium_proof",
@@ -1878,6 +2183,30 @@
                 "name": "BidStatus"
               }
             }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BidCiphertext",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "auction",
+            "type": "pubkey"
+          },
+          {
+            "name": "bidder",
+            "type": "pubkey"
+          },
+          {
+            "name": "data",
+            "type": "bytes"
           },
           {
             "name": "bump",
