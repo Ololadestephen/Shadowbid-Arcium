@@ -4,7 +4,7 @@ import { ShadowBidClient } from './shadowbid-sdk';
 import { PublicKey } from '@solana/web3.js';
 
 // Replace with your actual program ID
-const DEFAULT_PROGRAM_ID = 'CSqdLojNG42tPTGTD5tGUv7X8o896Jqq98T1zkynErnW';
+const DEFAULT_PROGRAM_ID = 'EkfGifLr2z1zyVsqBWekmRnzGcfy45KzdNpSZbFm4yuy';
 export const SHADOWBID_PROGRAM_ID = new PublicKey(
     import.meta.env.VITE_PROGRAM_ID || DEFAULT_PROGRAM_ID
 );

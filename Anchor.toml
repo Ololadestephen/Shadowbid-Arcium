@@ -6,10 +6,10 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-shadowbid = "CSqdLojNG42tPTGTD5tGUv7X8o896Jqq98T1zkynErnW"
+shadowbid = "EkfGifLr2z1zyVsqBWekmRnzGcfy45KzdNpSZbFm4yuy"
 
 [programs.localnet]
-shadowbid = "CSqdLojNG42tPTGTD5tGUv7X8o896Jqq98T1zkynErnW"
+shadowbid = "EkfGifLr2z1zyVsqBWekmRnzGcfy45KzdNpSZbFm4yuy"
 
 [programs.mainnet]
 shadowbid = "8xDfYsb3U8dTs1bQTYLYn1VDe2eFsa81KbgRNHrUDmSz"

@@ -3,7 +3,7 @@ name = "shadowbid"
 version = "0.1.0"
 
 [solana]
-program_id = "8xDfYsb3U8dTs1bQTYLYn1VDe2eFsa81KbgRNHrUDmSz"
+program_id = "EkfGifLr2z1zyVsqBWekmRnzGcfy45KzdNpSZbFm4yuy"
 
 [mxe]
 cluster = "devnet"

@@ -16,7 +16,7 @@ const BID_ENCRYPTED_DATA_OFFSET: u32 = 8 + 32 + 32 + 8 + 32 + 4;
 const COMPARE_BIDS_COMP_DEF_OFFSET: u32 = arcium_anchor::comp_def_offset("compare_bids");
 const MIN_ARCIUM_PROOF_LEN: usize = 32;
 
-declare_id!("CSqdLojNG42tPTGTD5tGUv7X8o896Jqq98T1zkynErnW");
+declare_id!("EkfGifLr2z1zyVsqBWekmRnzGcfy45KzdNpSZbFm4yuy");
 
 #[arcium_program]
 pub mod shadowbid {

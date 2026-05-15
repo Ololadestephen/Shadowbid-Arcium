@@ -194,7 +194,7 @@ After deploying the Solana program, initialize the Arcium computation definition
 ```bash
 ANCHOR_PROVIDER_URL=https://api.devnet.solana.com \
 ANCHOR_WALLET=/path/to/wallet.json \
-SHADOWBID_PROGRAM_ID=CSqdLojNG42tPTGTD5tGUv7X8o896Jqq98T1zkynErnW \
+SHADOWBID_PROGRAM_ID=EkfGifLr2z1zyVsqBWekmRnzGcfy45KzdNpSZbFm4yuy \
 npm run arcium:init-compare-bids
 ```
 
@@ -364,7 +364,7 @@ cargo tarpaulin --out Html
 Update in `Anchor.toml` and `lib.rs`:
 ```toml
 [programs.localnet]
-shadowbid = "CSqdLojNG42tPTGTD5tGUv7X8o896Jqq98T1zkynErnW"
+shadowbid = "EkfGifLr2z1zyVsqBWekmRnzGcfy45KzdNpSZbFm4yuy"
 ```
 
 ### Arcium Endpoint
@@ -372,7 +372,7 @@ Configure in SDK initialization:
 ```typescript
 const client = new ShadowBidClient(
   provider,
-  new PublicKey('CSqdLojNG42tPTGTD5tGUv7X8o896Jqq98T1zkynErnW')
+  new PublicKey('EkfGifLr2z1zyVsqBWekmRnzGcfy45KzdNpSZbFm4yuy')
 );
 ```
 

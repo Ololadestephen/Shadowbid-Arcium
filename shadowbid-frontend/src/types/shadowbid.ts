@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/shadowbid.json`.
  */
 export type Shadowbid = {
-  "address": "CSqdLojNG42tPTGTD5tGUv7X8o896Jqq98T1zkynErnW",
+  "address": "EkfGifLr2z1zyVsqBWekmRnzGcfy45KzdNpSZbFm4yuy",
   "metadata": {
     "name": "shadowbid",
     "version": "0.1.0",

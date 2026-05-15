@@ -6,7 +6,7 @@ import { uploadCircuit } from "@arcium-hq/client";
 
 const circuitName = process.argv[2] ?? "compare_bids";
 const programId = new PublicKey(
-  process.env.SHADOWBID_PROGRAM_ID ?? "CSqdLojNG42tPTGTD5tGUv7X8o896Jqq98T1zkynErnW"
+  process.env.SHADOWBID_PROGRAM_ID ?? "EkfGifLr2z1zyVsqBWekmRnzGcfy45KzdNpSZbFm4yuy"
 );
 const circuitPath = resolve("build", `${circuitName}.arcis`);
 

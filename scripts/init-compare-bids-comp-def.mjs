@@ -11,7 +11,7 @@ import {
 } from "@arcium-hq/client";
 
 const programId = new PublicKey(
-  process.env.SHADOWBID_PROGRAM_ID ?? "CSqdLojNG42tPTGTD5tGUv7X8o896Jqq98T1zkynErnW"
+  process.env.SHADOWBID_PROGRAM_ID ?? "EkfGifLr2z1zyVsqBWekmRnzGcfy45KzdNpSZbFm4yuy"
 );
 const idl = JSON.parse(readFileSync("target/idl/shadowbid.json", "utf8"));
 
