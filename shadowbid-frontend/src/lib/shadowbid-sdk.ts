@@ -608,7 +608,7 @@ export class ShadowBidClient {
   private serializeSharedBidInput(
     publicKey: Uint8Array,
     nonce: Uint8Array,
-    ciphertexts: Uint8Array[]
+    ciphertexts: Array<Uint8Array | number[]>
   ): Buffer {
     if (ciphertexts.length !== BID_INPUT_CIPHERTEXTS) {
       throw new Error(
@@ -621,7 +621,13 @@ export class ShadowBidClient {
     Buffer.from(nonce).copy(output, 32);
 
     ciphertexts.forEach((ciphertext, index) => {
-      Buffer.from(ciphertext).copy(output, 48 + index * 32);
+      const bytes = Buffer.from(ciphertext);
+      if (bytes.length !== 32) {
+        throw new Error(
+          `compare_bids ciphertext ${index} must be 32 bytes, got ${bytes.length}`
+        );
+      }
+      bytes.copy(output, 48 + index * 32);
     });
 
     return output;
