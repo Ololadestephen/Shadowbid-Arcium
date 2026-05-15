@@ -34,7 +34,8 @@ import {
 } from "@arcium-hq/client";
 
 const BID_INPUT_CIPHERTEXTS = 33;
-const ARCIUM_SHARED_BID_INPUT_LEN = 32 + 16 + BID_INPUT_CIPHERTEXTS * 32;
+const LEGACY_ARCIUM_SHARED_BID_INPUT_LEN = 32 + 16 + BID_INPUT_CIPHERTEXTS * 32;
+const ARCIUM_SHARED_BID_INPUT_LEN = 32 + 32 + BID_INPUT_CIPHERTEXTS * 32;
 const MAX_CIPHERTEXT_CHUNK_LEN = 800;
 const DEFAULT_ARCIUM_CLUSTER_OFFSET = 456;
 
@@ -372,6 +373,10 @@ export class ShadowBidClient {
     const [bidA, bidB] = await Promise.all([
       (this.program.account as any).bid.fetch(params.bidAPda),
       (this.program.account as any).bid.fetch(params.bidBPda),
+    ]);
+    await Promise.all([
+      this.migrateLegacyBidCiphertext(params.auctionPda, bidA.bidCiphertext, auction.authority),
+      this.migrateLegacyBidCiphertext(params.auctionPda, bidB.bidCiphertext, auction.authority),
     ]);
 
     const queueTx = await (this.program.methods as any)
@@ -739,10 +744,40 @@ export class ShadowBidClient {
           `compare_bids ciphertext ${index} must be 32 bytes, got ${bytes.length}`
         );
       }
-      bytes.copy(output, 48 + index * 32);
+      bytes.copy(output, 64 + index * 32);
     });
 
     return output;
+  }
+
+  private async migrateLegacyBidCiphertext(
+    auctionPda: PublicKey,
+    bidCiphertextPda: PublicKey,
+    authority: PublicKey
+  ): Promise<void> {
+    const bidCiphertext = await (this.program.account as any).bidCiphertext.fetch(
+      bidCiphertextPda
+    );
+
+    if (bidCiphertext.data.length === ARCIUM_SHARED_BID_INPUT_LEN) {
+      return;
+    }
+
+    if (bidCiphertext.data.length !== LEGACY_ARCIUM_SHARED_BID_INPUT_LEN) {
+      throw new Error(
+        `Bid ciphertext has invalid length ${bidCiphertext.data.length}`
+      );
+    }
+
+    await (this.program.methods as any)
+      .migrateBidCiphertextPadding()
+      .accounts({
+        auction: auctionPda,
+        bidCiphertext: bidCiphertextPda,
+        authority,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
   }
 
   // ============================================================================

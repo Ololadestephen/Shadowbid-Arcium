@@ -43,7 +43,7 @@ describe("ShadowBid Blind Auctions", () => {
   let auctionPda: PublicKey;
   let escrowPda: PublicKey;
 
-  const encryptedBidFixture = (fill: number) => Buffer.from(Array(1104).fill(fill));
+  const encryptedBidFixture = (fill: number) => Buffer.from(Array(1120).fill(fill));
   const MAX_CIPHERTEXT_CHUNK_LEN = 800;
 
   const getBidCiphertextPda = async (bidder: PublicKey) =>

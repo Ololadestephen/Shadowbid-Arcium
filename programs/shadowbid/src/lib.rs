@@ -11,7 +11,8 @@ use arcium_client::idl::arcium::{
 use arcium_macros::circuit_hash;
 
 const BID_INPUT_CIPHERTEXTS: usize = 33;
-const ARCIUM_SHARED_BID_INPUT_LEN: usize = 32 + 16 + (BID_INPUT_CIPHERTEXTS * 32);
+const LEGACY_ARCIUM_SHARED_BID_INPUT_LEN: usize = 32 + 16 + (BID_INPUT_CIPHERTEXTS * 32);
+const ARCIUM_SHARED_BID_INPUT_LEN: usize = 32 + 32 + (BID_INPUT_CIPHERTEXTS * 32);
 const BID_CIPHERTEXT_DATA_OFFSET: u32 = 8 + 32 + 32 + 4;
 const COMPARE_BIDS_COMP_DEF_OFFSET: u32 = arcium_anchor::comp_def_offset("compare_bids");
 const MIN_ARCIUM_PROOF_LEN: usize = 32;
@@ -113,6 +114,32 @@ pub mod shadowbid {
             ErrorCode::InvalidEncryptedBid
         );
         ciphertext.data.extend_from_slice(&chunk);
+        Ok(())
+    }
+
+    pub fn migrate_bid_ciphertext_padding(
+        ctx: Context<MigrateBidCiphertextPadding>,
+    ) -> anchor_lang::Result<()> {
+        let ciphertext = &mut ctx.accounts.bid_ciphertext;
+        require!(
+            ciphertext.auction == ctx.accounts.auction.key(),
+            ErrorCode::InvalidEncryptedBid
+        );
+
+        if ciphertext.data.len() == ARCIUM_SHARED_BID_INPUT_LEN {
+            return Ok(());
+        }
+
+        require!(
+            ciphertext.data.len() == LEGACY_ARCIUM_SHARED_BID_INPUT_LEN,
+            ErrorCode::InvalidEncryptedBid
+        );
+
+        let mut padded = Vec::with_capacity(ARCIUM_SHARED_BID_INPUT_LEN);
+        padded.extend_from_slice(&ciphertext.data[0..48]);
+        padded.extend_from_slice(&[0u8; 16]);
+        padded.extend_from_slice(&ciphertext.data[48..]);
+        ciphertext.data = padded;
         Ok(())
     }
 
@@ -542,6 +569,31 @@ pub struct WriteBidCiphertextChunk<'info> {
 }
 
 #[derive(Accounts)]
+pub struct MigrateBidCiphertextPadding<'info> {
+    #[account(
+        seeds = [b"auction", auction.authority.as_ref(), auction.auction_id.to_le_bytes().as_ref()],
+        bump = auction.bump,
+        has_one = authority
+    )]
+    pub auction: Account<'info, Auction>,
+
+    #[account(
+        mut,
+        realloc = 8 + BidCiphertext::INIT_SPACE,
+        realloc::payer = authority,
+        realloc::zero = false,
+        seeds = [b"bid_ciphertext", auction.key().as_ref(), bid_ciphertext.bidder.as_ref()],
+        bump = bid_ciphertext.bump
+    )]
+    pub bid_ciphertext: Account<'info, BidCiphertext>,
+
+    #[account(mut)]
+    pub authority: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 pub struct PlaceBid<'info> {
     #[account(
         mut,
@@ -747,7 +799,7 @@ pub struct Bid {
 pub struct BidCiphertext {
     pub auction: Pubkey,
     pub bidder: Pubkey,
-    #[max_len(1104)]
+    #[max_len(1120)]
     pub data: Vec<u8>,
     pub bump: u8,
 }

@@ -775,6 +775,99 @@ export type Shadowbid = {
       "args": []
     },
     {
+      "name": "migrateBidCiphertextPadding",
+      "discriminator": [
+        236,
+        22,
+        190,
+        149,
+        226,
+        79,
+        129,
+        251
+      ],
+      "accounts": [
+        {
+          "name": "auction",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  117,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction.authority",
+                "account": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "auction.auction_id",
+                "account": "auction"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bidCiphertext",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100,
+                  95,
+                  99,
+                  105,
+                  112,
+                  104,
+                  101,
+                  114,
+                  116,
+                  101,
+                  120,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bid_ciphertext.bidder",
+                "account": "bidCiphertext"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "auction"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "placeBid",
       "docs": [
         "Place an encrypted bid (bid amount derived from token transfer)"
