@@ -127,6 +127,23 @@ pub mod shadowbid {
         );
 
         if ciphertext.data.len() == ARCIUM_SHARED_BID_INPUT_LEN {
+            if ciphertext.data[LEGACY_ARCIUM_SHARED_BID_INPUT_LEN..]
+                .iter()
+                .all(|byte| *byte == 0)
+            {
+                return Ok(());
+            }
+
+            require!(
+                ciphertext.data[48..64].iter().all(|byte| *byte == 0),
+                ErrorCode::InvalidEncryptedBid
+            );
+
+            let mut normalized = Vec::with_capacity(ARCIUM_SHARED_BID_INPUT_LEN);
+            normalized.extend_from_slice(&ciphertext.data[0..48]);
+            normalized.extend_from_slice(&ciphertext.data[64..]);
+            normalized.extend_from_slice(&[0u8; 16]);
+            ciphertext.data = normalized;
             return Ok(());
         }
 
@@ -136,9 +153,8 @@ pub mod shadowbid {
         );
 
         let mut padded = Vec::with_capacity(ARCIUM_SHARED_BID_INPUT_LEN);
-        padded.extend_from_slice(&ciphertext.data[0..48]);
+        padded.extend_from_slice(&ciphertext.data);
         padded.extend_from_slice(&[0u8; 16]);
-        padded.extend_from_slice(&ciphertext.data[48..]);
         ciphertext.data = padded;
         Ok(())
     }

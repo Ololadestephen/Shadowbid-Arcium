@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Lock, Clock, Shield, ArrowLeft, User, Calendar, DollarSign, RefreshCw, Trophy, Info, Cpu } from 'lucide-react';
 
@@ -30,6 +30,12 @@ const AuctionDetails = () => {
 
     const [bidAmount, setBidAmount] = useState('');
     const [bidProgress, setBidProgress] = useState('');
+    const [refreshingStatus, setRefreshingStatus] = useState(false);
+    const [queuedComparison, setQueuedComparison] = useState<{
+        signature: string;
+        computationOffset: string;
+        queuedAt: number;
+    } | null>(null);
 
     // Extract image URL and cleaned description - moved to top to follow Rules of Hooks
     const { description: displayDescription, imageUrl } = useMemo(() => {
@@ -61,6 +67,65 @@ const AuctionDetails = () => {
     const activeBids = useMemo(() => {
         return bids.filter((bid: any) => Object.keys(bid.account.status)[0].toLowerCase() === 'active');
     }, [bids]);
+
+    const refreshAuctionStatus = async (showNotification = true) => {
+        if (!auctionPda) return null;
+        setRefreshingStatus(true);
+        try {
+            const [freshAuction] = await Promise.all([refetchAuction(), refetchBids()]);
+            if (showNotification && freshAuction) {
+                if (freshAuction.status.closed) {
+                    notify({
+                        type: 'success',
+                        title: 'Auction finalized',
+                        message: 'Arcium callback closed the auction and recorded the winner.',
+                    });
+                } else if (queuedComparison) {
+                    notify({
+                        type: 'info',
+                        title: 'Still waiting for Arcium',
+                        message: 'The comparison is queued or the callback has not closed the auction yet.',
+                    });
+                } else {
+                    notify({
+                        type: 'info',
+                        title: 'Status refreshed',
+                        message: 'Auction and bid data are up to date.',
+                    });
+                }
+            }
+            return freshAuction;
+        } catch (err: any) {
+            if (showNotification) {
+                notify({
+                    type: 'error',
+                    title: 'Refresh failed',
+                    message: err.message || 'Could not fetch the latest auction status.',
+                });
+            }
+            return null;
+        } finally {
+            setRefreshingStatus(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!queuedComparison || auction?.status?.closed) return;
+
+        const intervalId = window.setInterval(async () => {
+            const freshAuction = await refreshAuctionStatus(false);
+            if (freshAuction?.status?.closed) {
+                notify({
+                    type: 'success',
+                    title: 'Auction finalized',
+                    message: 'Arcium returned the verified result and closed the auction.',
+                });
+                setQueuedComparison(null);
+            }
+        }, 15000);
+
+        return () => window.clearInterval(intervalId);
+    }, [queuedComparison, auction?.status?.closed, auctionPda]);
 
     const handleStartAuction = async () => {
         if (!auctionPda) return;
@@ -156,12 +221,18 @@ const AuctionDetails = () => {
                 waitForCallback: false,
             });
 
+            setQueuedComparison({
+                signature: result.signature,
+                computationOffset: result.computationOffset.toString(),
+                queuedAt: Date.now(),
+            });
+
             notify({
                 type: 'success',
                 title: 'Arcium comparison queued',
                 message: result.finalizeSignature
                     ? 'Arcium returned a verified winner and closed the auction.'
-                    : 'The verified callback will close the auction when Arcium returns the result.',
+                    : 'Use Refresh status to check whether the verified callback has closed the auction.',
             });
             await Promise.all([refetchAuction(), refetchBids()]);
         } catch (err: any) {
@@ -451,9 +522,37 @@ const AuctionDetails = () => {
                                 <div className="text-right">
                                     <p className="text-sm text-text-muted mb-1">Status</p>
                                     <p className="text-lg font-semibold text-primary-purple capitalize">{Object.keys(auction.status)[0]}</p>
+                                    <button
+                                        onClick={() => refreshAuctionStatus(true)}
+                                        disabled={refreshingStatus}
+                                        className="mt-3 inline-flex items-center justify-center space-x-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold text-text-secondary transition-colors hover:border-primary-purple hover:text-primary-purple disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        <RefreshCw className={`h-4 w-4 ${refreshingStatus ? 'animate-spin' : ''}`} />
+                                        <span>Refresh status</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
+
+                        {queuedComparison && auction.status.active && (
+                            <div className="rounded-xl border border-accent-cyan bg-background-card p-4">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <p className="text-sm font-semibold text-text-primary">Arcium comparison pending</p>
+                                        <p className="mt-1 text-sm leading-5 text-text-secondary">
+                                            Queued {new Date(queuedComparison.queuedAt).toLocaleTimeString()}. Refresh status to check whether the callback closed the auction.
+                                        </p>
+                                        <p className="mt-2 break-all text-xs text-text-muted">
+                                            Queue tx: {queuedComparison.signature}
+                                        </p>
+                                        <p className="mt-1 break-all text-xs text-text-muted">
+                                            Computation offset: {queuedComparison.computationOffset}
+                                        </p>
+                                    </div>
+                                    <Cpu className="mt-1 h-5 w-5 flex-shrink-0 text-accent-cyan" />
+                                </div>
+                            </div>
+                        )}
 
 
                         {/* Creator Actions */}

@@ -65,15 +65,17 @@ export const useAuction = (auctionPda: PublicKey) => {
     const [error, setError] = useState<string | null>(null);
 
     const fetchAuction = useCallback(async () => {
-        if (!client || !auctionPda) return;
+        if (!client || !auctionPda) return null;
         try {
             setLoading(true);
             const data = await client.getAuction(auctionPda);
             setAuction(data);
             setError(null);
+            return data;
         } catch (err: any) {
             console.error('Error fetching auction:', err);
             setError(err.message || 'Failed to fetch auction');
+            return null;
         } finally {
             setLoading(false);
         }
@@ -93,15 +95,17 @@ export const useAuctionBids = (auctionPda: PublicKey) => {
     const [error, setError] = useState<string | null>(null);
 
     const fetchBids = useCallback(async () => {
-        if (!client || !auctionPda) return;
+        if (!client || !auctionPda) return [];
         try {
             setLoading(true);
             const data = await client.getAuctionBids(auctionPda);
             setBids(data);
             setError(null);
+            return data;
         } catch (err: any) {
             console.error('Error fetching bids:', err);
             setError(err.message || 'Failed to fetch bids');
+            return [];
         } finally {
             setLoading(false);
         }

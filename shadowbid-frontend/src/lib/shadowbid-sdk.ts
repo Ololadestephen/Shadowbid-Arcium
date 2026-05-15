@@ -744,7 +744,7 @@ export class ShadowBidClient {
           `compare_bids ciphertext ${index} must be 32 bytes, got ${bytes.length}`
         );
       }
-      bytes.copy(output, 64 + index * 32);
+      bytes.copy(output, 48 + index * 32);
     });
 
     return output;
@@ -759,11 +759,19 @@ export class ShadowBidClient {
       bidCiphertextPda
     );
 
-    if (bidCiphertext.data.length === ARCIUM_SHARED_BID_INPUT_LEN) {
+    if (
+      bidCiphertext.data.length === ARCIUM_SHARED_BID_INPUT_LEN &&
+      bidCiphertext.data
+        .slice(LEGACY_ARCIUM_SHARED_BID_INPUT_LEN)
+        .every((byte: number) => byte === 0)
+    ) {
       return;
     }
 
-    if (bidCiphertext.data.length !== LEGACY_ARCIUM_SHARED_BID_INPUT_LEN) {
+    if (
+      bidCiphertext.data.length !== LEGACY_ARCIUM_SHARED_BID_INPUT_LEN &&
+      bidCiphertext.data.length !== ARCIUM_SHARED_BID_INPUT_LEN
+    ) {
       throw new Error(
         `Bid ciphertext has invalid length ${bidCiphertext.data.length}`
       );
