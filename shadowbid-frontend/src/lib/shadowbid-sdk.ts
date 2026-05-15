@@ -374,7 +374,7 @@ export class ShadowBidClient {
       (this.program.account as any).bid.fetch(params.bidBPda),
     ]);
 
-    const tx = await (this.program.methods as any)
+    const queueTx = await (this.program.methods as any)
       .compareBids(
         computationOffset,
         new BN(params.cuPriceMicro ?? 0)
@@ -401,7 +401,33 @@ export class ShadowBidClient {
         systemProgram: SystemProgram.programId,
         arciumProgram: getArciumProgramId(),
       })
-      .rpc({ skipPreflight: true, commitment: "confirmed" });
+      .transaction();
+
+    const wallet = this.provider.wallet as any;
+    if (!wallet.signTransaction) {
+      throw new Error("Connected wallet cannot sign the Arcium finalization transaction");
+    }
+
+    const latestBlockhash = await this.provider.connection.getLatestBlockhash("confirmed");
+    queueTx.feePayer = this.provider.wallet.publicKey;
+    queueTx.recentBlockhash = latestBlockhash.blockhash;
+
+    const signedTx = await wallet.signTransaction(queueTx);
+    const tx = await this.provider.connection.sendRawTransaction(
+      signedTx.serialize(),
+      {
+        skipPreflight: false,
+        preflightCommitment: "confirmed",
+      }
+    );
+    await this.provider.connection.confirmTransaction(
+      {
+        signature: tx,
+        blockhash: latestBlockhash.blockhash,
+        lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+      },
+      "confirmed"
+    );
 
     let finalizeSignature: string | undefined;
     if (params.waitForCallback) {

@@ -153,15 +153,15 @@ const AuctionDetails = () => {
                 auctionPda,
                 bidAPda: activeBids[0].publicKey,
                 bidBPda: activeBids[1].publicKey,
-                waitForCallback: true,
+                waitForCallback: false,
             });
 
             notify({
                 type: 'success',
-                title: 'Auction finalized',
+                title: 'Arcium comparison queued',
                 message: result.finalizeSignature
                     ? 'Arcium returned a verified winner and closed the auction.'
-                    : 'The Arcium comparison was queued.',
+                    : 'The verified callback will close the auction when Arcium returns the result.',
             });
             await Promise.all([refetchAuction(), refetchBids()]);
         } catch (err: any) {

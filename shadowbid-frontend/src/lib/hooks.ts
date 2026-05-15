@@ -187,7 +187,7 @@ export const useFinalizeAuction = () => {
         try {
             const result = await client.queueCompareBids({
                 ...params,
-                waitForCallback: params.waitForCallback ?? true,
+                waitForCallback: params.waitForCallback ?? false,
             });
             return result;
         } catch (err: any) {
