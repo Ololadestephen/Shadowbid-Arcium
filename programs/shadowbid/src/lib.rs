@@ -14,6 +14,7 @@ const BID_INPUT_CIPHERTEXTS: usize = 33;
 const LEGACY_ARCIUM_SHARED_BID_INPUT_LEN: usize = 32 + 16 + (BID_INPUT_CIPHERTEXTS * 32);
 const ARCIUM_SHARED_BID_INPUT_LEN: usize = 32 + 32 + (BID_INPUT_CIPHERTEXTS * 32);
 const COMPARE_BIDS_COMP_DEF_OFFSET: u32 = arcium_anchor::comp_def_offset("compare_bids");
+const ARCIUM_COMPUTATION_ACCOUNT_SEED: &[u8] = b"ComputationAccount";
 const MIN_ARCIUM_PROOF_LEN: usize = 32;
 const MAX_CIPHERTEXT_CHUNK_LEN: usize = 800;
 const ARCIUM_SIGNER_ACCOUNT_SPACE: usize = 9;
@@ -1031,6 +1032,23 @@ fn append_encrypted_bid_arg(mut builder: ArgBuilder, data: &[u8]) -> Result<ArgB
     Ok(builder)
 }
 
+fn derive_computation_account_pda(
+    computation_offset: u64,
+    mxe_account: &MXEAccount,
+) -> Result<Pubkey> {
+    let cluster = mxe_account.cluster.ok_or(ErrorCode::ClusterNotSet)?;
+
+    Ok(Pubkey::find_program_address(
+        &[
+            ARCIUM_COMPUTATION_ACCOUNT_SEED,
+            &cluster.to_le_bytes(),
+            &computation_offset.to_le_bytes(),
+        ],
+        &ARCIUM_PROG_ID,
+    )
+    .0)
+}
+
 #[init_computation_definition_accounts("compare_bids", payer)]
 #[derive(Accounts)]
 pub struct InitCompareBidsCompDef<'info> {
@@ -1225,7 +1243,7 @@ impl CallbackCompAccs for CompareBidsCallback<'_> {
             is_writable: false,
         });
         accounts.push(CallbackAccount {
-            pubkey: derive_comp_pda!(computation_offset, mxe_account, ErrorCode::ClusterNotSet),
+            pubkey: derive_computation_account_pda(computation_offset, mxe_account)?,
             is_writable: false,
         });
         accounts.push(CallbackAccount {
