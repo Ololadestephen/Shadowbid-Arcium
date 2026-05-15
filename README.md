@@ -467,7 +467,6 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 ## 🔗 Links
 
 - [Documentation](https://docs.shadowbid.io)
-- [Demo Video](https://youtu.be/demo)
 - [Arcium Docs](https://docs.arcium.com)
 - [Solana Docs](https://docs.solana.com)
 
