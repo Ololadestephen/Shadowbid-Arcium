@@ -29,10 +29,8 @@ startup_wait = 5000
 shutdown_wait = 2000
 upgradeable = false
 
-
-
 [test.validator]
-bind_address = "0.0.0.0"
+bind_address = "127.0.0.1"
 url = "https://api.devnet.solana.com"
 ledger = ".anchor/test-ledger"
 rpc_port = 8899

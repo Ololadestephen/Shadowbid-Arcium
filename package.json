@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "license": "MIT",
   "scripts": {
+    "arcium:upload-circuit": "node scripts/upload-arcium-circuit.mjs",
+    "arcium:init-compare-bids": "node scripts/init-compare-bids-comp-def.mjs",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
   },

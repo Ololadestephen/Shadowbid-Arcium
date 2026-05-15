@@ -97,16 +97,16 @@ ShadowBid eliminates these issues using **Arcium's MPC** to:
 ShadowBid leverages the Arcium MPC network to solve the most critical problems in decentralized auctions:
 
 ### 1. Zero Bid Visibility
-Current Solana auctions expose bid amounts in the mempool or on-chain state, allowing others to sniper bids or collude. Arcium ensures that **bid amounts are never stored in plaintext** on the blockchain.
+Current Solana auctions expose bid amounts in the mempool or on-chain state, allowing others to snipe bids or collude. ShadowBid includes an Arcium encrypted-instruction circuit for private bid comparison, stores Arcium ciphertext/proof material with each bid, and queues the `compare_bids` computation through Arcium before closing. The current SPL escrow implementation still records the escrowed collateral amount on-chain, so the next production hardening step is encrypting collateral sizing/reserve handling as well.
 
 ### 2. MEV Resistance
 By encrypting bids client-side, we eliminate the metadata that Searchers and Validators use to frontrun or sandwich transactions. Your bid is a "shadow" that only reveals its value when the auction effectively closes.
 
 ### 3. Fair Price Discovery
-Without knowing competing bids, users are incentivized to bid their true valuation. Arcium's MPC network computes the winner without ever decrypting the losing bids, maintaining privacy even after the auction ends.
+Without knowing competing bids, users are incentivized to bid their true valuation. The `encrypted-ixs` crate defines an Arcium circuit that compares encrypted `BidInput` values and reveals only the winning bidder and amount.
 
 ### 4. Cryptographic Integrity
-Every action is backed by Zero-Knowledge proofs. Bidders prove their bid is valid without revealing the amount, and the MPC network proves the winner was determined correctly according to the rules.
+Bid submissions carry encrypted bid data, an Arcium public key, and proof bytes. The on-chain program rejects malformed encrypted payloads/proofs, queues encrypted bid pairs into Arcium, and only closes from a signed Arcium callback whose winner matches one of the compared bid accounts.
 
 ## 🚀 How Arcium is Used
 
@@ -115,14 +115,14 @@ Every action is backed by Zero-Knowledge proofs. Bidders prove their bid is vali
 // 1. User places bid
 const bidAmount = 1_000_000_000; // 1 SOL (in lamports)
 
-// 2. Encrypt bid using Arcium (happens internally in SDK)
+// 2. Encrypt bid using Arcium client helpers (happens internally in SDK)
 // The SDK generates an ephemeral Arcium public key for each bid
-// and produces the encrypted bid data and a ZK proof.
+// and produces encrypted bid data plus proof/commitment bytes.
 
 // 3. Submit encrypted bid to blockchain
 await shadowbidClient.placeBid({
   auctionPda,
-  bidAmount, // Plaintext amount for escrow transfer (contract only sees this for transfer)
+  bidAmount, // Escrow collateral amount for the SPL token transfer
   tokenMint: NATIVE_MINT // Native SOL
 });
 // Internally the SDK calls:
@@ -139,12 +139,13 @@ await shadowbidClient.placeBid({
 // Smart contract receives encrypted bid
 pub fn place_bid(
     ctx: Context<PlaceBid>,
-    bid_amount: u64,           // Encrypted
-    encrypted_bid: Vec<u8>,    // Ciphertext
+    amount: u64,               // Escrow collateral amount
+    encrypted_bid: Vec<u8>,    // Serialized Arcium SharedEncryptedStruct<33>
     arcium_proof: Vec<u8>,     // ZK proof
 ) -> Result<()> {
-    // Verify proof without decrypting
-    verify_encrypted_bid(&encrypted_bid, &arcium_proof)?;
+    // Reject malformed encrypted bid/proof material
+    require!(encrypted_bid.len() == 1104, ErrorCode::InvalidEncryptedBid);
+    require!(arcium_proof.len() >= 32, ErrorCode::InvalidProof);
     
     // Store encrypted bid in escrow
     let bid = &mut ctx.accounts.bid;
@@ -159,25 +160,42 @@ pub fn place_bid(
 
 ### Winner Computation (Arcium MPC)
 ```typescript
-// When auction closes:
-
-// 1. Fetch all encrypted bids from blockchain
-const bids = await getAllBids(auctionPda);
-
-// 2. Submit to Arcium MPC for computation
-const result = await arciumClient.computeWinner({
-  auctionId,
-  encryptedBids: bids.map(b => b.encrypted_bid_data),
-  mpcId: auction.arcium_mpc_id
+// When auction closes, queue a comparison between encrypted bid accounts.
+// The Arcium network calls compare_bids_callback with a signed output.
+await shadowbidClient.queueCompareBids({
+  auctionPda,
+  bidAPda,
+  bidBPda,
+  waitForCallback: true
 });
-// MPC computes winner WITHOUT decrypting any bids
+```
 
-// 3. Verify and store result on-chain
-await closeAuction({
-  winner: result.winnerPubkey,
-  winningAmount: result.winningAmount,
-  proof: result.computationProof
-});
+The legacy SDK-side winner fallback has been disabled. `closeAuction` no longer accepts a client-selected winner; direct close attempts return `ArciumCallbackRequired`.
+
+### Circuit Upload
+
+The repo includes Arcium circuit interface artifacts under `build/` and the source circuit in `encrypted-ixs/`. If `arcium build --skip-program` cannot emit a `.arcis` artifact in your environment, build the circuit in an Arcium-enabled environment and copy the generated files back into `build/`, especially:
+
+```bash
+build/compare_bids.arcis
+build/compare_bids.idarc
+build/compare_bids.hash
+build/compare_bids.weight
+```
+
+The `compare_bids` circuit is served as a static artifact at:
+
+```bash
+https://shadowbid-beta.vercel.app/arcium/compare_bids.arcis
+```
+
+After deploying the Solana program, initialize the Arcium computation definition once:
+
+```bash
+ANCHOR_PROVIDER_URL=https://api.devnet.solana.com \
+ANCHOR_WALLET=/path/to/wallet.json \
+SHADOWBID_PROGRAM_ID=CSqdLojNG42tPTGTD5tGUv7X8o896Jqq98T1zkynErnW \
+npm run arcium:init-compare-bids
 ```
 
 ## 📦 Installation
@@ -258,15 +276,17 @@ const { signature, bidPda } = await client.placeBid({
 console.log('Bid placed (encrypted):', signature);
 ```
 
-### Close Auction (Determine Winner)
+### Queue Arcium Winner Comparison
 ```typescript
-const { signature, winner, winningAmount } = await client.closeAuction({
-  auctionPda
+const { signature, finalizeSignature } = await client.queueCompareBids({
+  auctionPda,
+  bidAPda,
+  bidBPda,
+  waitForCallback: true
 });
 
-console.log('Auction closed!');
-console.log('Winner:', winner.toBase58());
-console.log('Winning amount:', winningAmount);
+console.log('Comparison queued:', signature);
+console.log('Arcium callback finalized:', finalizeSignature);
 ```
 
 ### Settle Auction
@@ -362,7 +382,8 @@ const client = new ShadowBidClient(
 
 ### Phase 1: Core Functionality ✅
 - [x] Smart contract development
-- [x] Arcium integration (Blind Bidding via MPC)
+- [x] Arcium encrypted comparison circuit source
+- [x] On-chain encrypted payload/proof validation
 - [x] TypeScript SDK
 - [x] Unit tests
 - [x] Native SOL Support (WSOL Auto-wrapping)
@@ -377,6 +398,7 @@ const client = new ShadowBidClient(
 - [x] Mobile-responsive design
 
 ### Phase 3: Advanced Features
+- [x] Arcium queue/callback winner finalization for `compare_bids`
 - [ ] Multi-token support (SPL Tokens)
 - [ ] Batch auctions
 - [ ] Reserve price encryption

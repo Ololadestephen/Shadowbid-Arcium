@@ -157,17 +157,19 @@ client.subscribeToAuctionEvents((event) => {
 ## ✅ Project Status Checklist
 
 - [x] Smart contract implemented
-- [x] Arcium integration complete
+- [x] Arcium encrypted comparison circuit source
+- [x] On-chain encrypted payload/proof validation
 - [x] TypeScript SDK ready
-- [x] Tests written and passing
+- [x] Tests updated for close-result validation
 - [x] Deployment script created
 - [x] Documentation complete
 - [x] Frontend Integrated & Functional
-- [x] Production Build Verified
+- [ ] Frontend Production Build Verified
 - [x] Native SOL Support Added
+- [x] Arcium queue/callback winner finalization for `compare_bids`
 
 ## 🎉 You're Ready!
 
-ShadowBid is a complete, production-ready privacy-preserving blind auction platform. The smart contract handles all auction logic, Arcium provides privacy through MPC, and the React frontend provides a premium user experience.
+ShadowBid is a working Solana blind-auction prototype with Arcium encrypted-instruction circuit source, on-chain validation for encrypted bid material, and `compare_bids` winner finalization through Arcium's queue/callback path. The remaining production milestone is making collateral/reserve handling fully private instead of mirroring escrowed amounts in SPL token transfers.
 
 **Happy building! 🚀**

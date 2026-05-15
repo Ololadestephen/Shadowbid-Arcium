@@ -4,8 +4,17 @@ use anchor_spl::{
     token::{self, Token, TokenAccount, Transfer},
 };
 use arcium_anchor::prelude::*;
+use arcium_client::idl::arcium::{
+    cpi::accounts::QueueComputation,
+    types::{CallbackAccount, CallbackInstruction, CircuitSource, OffChainCircuitSource},
+};
+use arcium_macros::circuit_hash;
 
-const COMP_DEF_OFFSET_COMPARE_BIDS: u32 = arcium_anchor::comp_def_offset("compare_bids");
+const BID_INPUT_CIPHERTEXTS: usize = 33;
+const ARCIUM_SHARED_BID_INPUT_LEN: usize = 32 + 16 + (BID_INPUT_CIPHERTEXTS * 32);
+const BID_ENCRYPTED_DATA_OFFSET: u32 = 8 + 32 + 32 + 8 + 32 + 4;
+const COMPARE_BIDS_COMP_DEF_OFFSET: u32 = arcium_anchor::comp_def_offset("compare_bids");
+const MIN_ARCIUM_PROOF_LEN: usize = 32;
 
 declare_id!("CSqdLojNG42tPTGTD5tGUv7X8o896Jqq98T1zkynErnW");
 
@@ -13,8 +22,17 @@ declare_id!("CSqdLojNG42tPTGTD5tGUv7X8o896Jqq98T1zkynErnW");
 pub mod shadowbid {
     use super::*;
 
-    pub fn init_compare_bids_comp_def(ctx: Context<InitCompareBidsCompDef>) -> anchor_lang::Result<()> {
-        init_comp_def(ctx.accounts, None, None)?;
+    pub fn init_compare_bids_comp_def(
+        ctx: Context<InitCompareBidsCompDef>,
+    ) -> anchor_lang::Result<()> {
+        init_comp_def(
+            ctx.accounts,
+            Some(CircuitSource::OffChain(OffChainCircuitSource {
+                source: "https://shadowbid-beta.vercel.app/arcium/compare_bids.arcis".to_string(),
+                hash: circuit_hash!("compare_bids"),
+            })),
+            None,
+        )?;
         Ok(())
     }
 
@@ -30,7 +48,10 @@ pub mod shadowbid {
         arcium_mpc_id: [u8; 32], // Arcium MPC computation ID
     ) -> anchor_lang::Result<()> {
         require!(end_time > start_time, ErrorCode::InvalidTimeRange);
-        require!(start_time >= Clock::get()?.unix_timestamp, ErrorCode::StartTimeInPast);
+        require!(
+            start_time >= Clock::get()?.unix_timestamp,
+            ErrorCode::StartTimeInPast
+        );
         require!(item_name.len() <= 64, ErrorCode::NameTooLong);
         require!(item_description.len() <= 256, ErrorCode::DescriptionTooLong);
 
@@ -65,28 +86,47 @@ pub mod shadowbid {
     pub fn place_bid(
         ctx: Context<PlaceBid>,
         amount: u64,
-        encrypted_bid: Vec<u8>, // Encrypted bid data from Arcium
-        arcium_proof: Vec<u8>,  // Zero-knowledge proof of bid validity
+        encrypted_bid: Vec<u8>,      // Encrypted bid data from Arcium
+        arcium_proof: Vec<u8>,       // Zero-knowledge proof of bid validity
         arcium_public_key: [u8; 32], // Ephemeral public key for Arcium encryption
     ) -> anchor_lang::Result<()> {
         let auction = &mut ctx.accounts.auction;
         let clock = Clock::get()?;
 
-        
-        
-        // Transfer amount
-        let amount_to_transfer = amount; 
-        
         // Validate auction state
-        require!(auction.status == AuctionStatus::Active, ErrorCode::AuctionNotActive);
-        require!(clock.unix_timestamp >= auction.start_time, ErrorCode::AuctionNotStarted);
-        require!(clock.unix_timestamp < auction.end_time, ErrorCode::AuctionNotEnded);
+        require!(
+            auction.status == AuctionStatus::Active,
+            ErrorCode::AuctionNotActive
+        );
+        require!(
+            clock.unix_timestamp >= auction.start_time,
+            ErrorCode::AuctionNotStarted
+        );
+        require!(
+            clock.unix_timestamp < auction.end_time,
+            ErrorCode::AuctionNotEnded
+        );
+        require!(amount >= auction.reserve_price, ErrorCode::BidBelowReserve);
+        require!(
+            encrypted_bid.len() == ARCIUM_SHARED_BID_INPUT_LEN,
+            ErrorCode::InvalidEncryptedBid
+        );
+        require!(
+            arcium_proof.len() >= MIN_ARCIUM_PROOF_LEN,
+            ErrorCode::InvalidProof
+        );
+        require!(
+            arcium_public_key != [0u8; 32],
+            ErrorCode::InvalidArciumPublicKey
+        );
+
+        let amount_to_transfer = amount;
         let bid = &mut ctx.accounts.bid;
         bid.auction = auction.key();
         bid.bidder = ctx.accounts.bidder.key();
-        bid.bid_amount = amount_to_transfer; 
+        bid.bid_amount = amount_to_transfer;
         bid.previous_bid = auction.last_bid; // Linked list: point to previous bid
-        
+
         let encrypted_bid_hash = hash_encrypted_bid(&encrypted_bid);
         bid.encrypted_bid_data = encrypted_bid;
         bid.arcium_proof = arcium_proof;
@@ -122,8 +162,14 @@ pub mod shadowbid {
         let auction = &mut ctx.accounts.auction;
         let clock = Clock::get()?;
 
-        require!(auction.status == AuctionStatus::Pending, ErrorCode::AuctionAlreadyStarted);
-        require!(clock.unix_timestamp >= auction.start_time, ErrorCode::TooEarlyToStart);
+        require!(
+            auction.status == AuctionStatus::Pending,
+            ErrorCode::AuctionAlreadyStarted
+        );
+        require!(
+            clock.unix_timestamp >= auction.start_time,
+            ErrorCode::TooEarlyToStart
+        );
 
         auction.status = AuctionStatus::Active;
 
@@ -136,25 +182,127 @@ pub mod shadowbid {
     }
 
     /// Trigger the winner comparison via Arcium MPC
-    pub fn compare_bids(ctx: Context<CompareBids>) -> anchor_lang::Result<()> {
+    pub fn compare_bids(
+        ctx: Context<CompareBids>,
+        computation_offset: u64,
+        cu_price_micro: u64,
+    ) -> anchor_lang::Result<()> {
         let auction = &ctx.accounts.auction;
-        
-    
-        
+        require!(
+            auction.status == AuctionStatus::Active,
+            ErrorCode::AuctionNotActive
+        );
+        require!(
+            Clock::get()?.unix_timestamp >= auction.end_time,
+            ErrorCode::AuctionNotEnded
+        );
+        require!(auction.total_bids > 1, ErrorCode::NoValidBids);
+        require!(
+            ctx.accounts.bid_a.key() != ctx.accounts.bid_b.key(),
+            ErrorCode::NoValidBids
+        );
+        require!(
+            ctx.accounts.bid_a.auction == auction.key()
+                && ctx.accounts.bid_b.auction == auction.key(),
+            ErrorCode::InvalidWinningBid
+        );
+        require!(
+            ctx.accounts.bid_a.status == BidStatus::Active
+                && ctx.accounts.bid_b.status == BidStatus::Active,
+            ErrorCode::NoValidBids
+        );
+        require!(
+            ctx.accounts.bid_a.encrypted_bid_data.len() == ARCIUM_SHARED_BID_INPUT_LEN
+                && ctx.accounts.bid_b.encrypted_bid_data.len() == ARCIUM_SHARED_BID_INPUT_LEN,
+            ErrorCode::InvalidEncryptedBid
+        );
+
+        let args = ArgBuilder::new()
+            .account(
+                ctx.accounts.bid_a.key(),
+                BID_ENCRYPTED_DATA_OFFSET,
+                ARCIUM_SHARED_BID_INPUT_LEN as u32,
+            )
+            .account(
+                ctx.accounts.bid_b.key(),
+                BID_ENCRYPTED_DATA_OFFSET,
+                ARCIUM_SHARED_BID_INPUT_LEN as u32,
+            )
+            .build();
+
+        let callback_ix = CompareBidsCallback::callback_ix(
+            computation_offset,
+            &ctx.accounts.mxe_account,
+            &[
+                CallbackAccount {
+                    pubkey: ctx.accounts.auction.key(),
+                    is_writable: true,
+                },
+                CallbackAccount {
+                    pubkey: ctx.accounts.bid_a.key(),
+                    is_writable: true,
+                },
+                CallbackAccount {
+                    pubkey: ctx.accounts.bid_b.key(),
+                    is_writable: true,
+                },
+            ],
+        )?;
+
+        arcium_anchor::queue_computation(
+            ctx.accounts,
+            computation_offset,
+            args,
+            vec![callback_ix],
+            1,
+            cu_price_micro,
+        )?;
+
         Ok(())
     }
 
     /// Callback received from Arcium MPC network with the winner
     pub fn compare_bids_callback(
         ctx: Context<CompareBidsCallback>,
-        winner_pubkey: Pubkey,
-        winning_bid_amount: u64,
+        output: SignedComputationOutputs<CompareBidsOutput>,
     ) -> anchor_lang::Result<()> {
+        validate_callback_ixs(
+            &ctx.accounts.instructions_sysvar,
+            &ctx.accounts.arcium_program.key(),
+        )?;
+
+        let result =
+            output.verify_output(&ctx.accounts.cluster_account, &ctx.accounts.computation_account)?;
+        let CompareBidsOutputStruct0 {
+            field_0: winning_bid_amount,
+            field_1: winner_bytes,
+        } = result.field_0;
+        let winner_pubkey = Pubkey::new_from_array(winner_bytes);
         let auction = &mut ctx.accounts.auction;
-        
+        require!(
+            auction.status == AuctionStatus::Active,
+            ErrorCode::AuctionNotActive
+        );
+        require!(
+            winning_bid_amount >= auction.reserve_price,
+            ErrorCode::BidBelowReserve
+        );
+        let bid_a_matches = ctx.accounts.bid_a.bidder == winner_pubkey
+            && ctx.accounts.bid_a.bid_amount == winning_bid_amount;
+        let bid_b_matches = ctx.accounts.bid_b.bidder == winner_pubkey
+            && ctx.accounts.bid_b.bid_amount == winning_bid_amount;
+        require!(bid_a_matches || bid_b_matches, ErrorCode::InvalidWinningBid);
+
         auction.status = AuctionStatus::Closed;
         auction.winner = winner_pubkey;
         auction.highest_bid_amount = winning_bid_amount;
+        if bid_a_matches {
+            ctx.accounts.bid_a.status = BidStatus::Won;
+            ctx.accounts.bid_b.status = BidStatus::Lost;
+        } else {
+            ctx.accounts.bid_a.status = BidStatus::Lost;
+            ctx.accounts.bid_b.status = BidStatus::Won;
+        }
 
         emit!(AuctionClosed {
             auction_id: auction.auction_id,
@@ -168,45 +316,29 @@ pub mod shadowbid {
 
     /// Close auction (manually or via MPC result)
     pub fn close_auction(
-        ctx: Context<CloseAuction>,
-        winner_pubkey: Pubkey,
-        winning_bid_amount: u64,
-        _arcium_result_proof: Vec<u8>, 
+        _ctx: Context<CloseAuction>,
+        _winner_pubkey: Pubkey,
+        _winning_bid_amount: u64,
+        _arcium_result_proof: Vec<u8>,
     ) -> anchor_lang::Result<()> {
-        let auction = &mut ctx.accounts.auction;
-        let clock = Clock::get()?;
-
-        require!(auction.status == AuctionStatus::Active, ErrorCode::AuctionNotActive);
-        require!(clock.unix_timestamp >= auction.end_time, ErrorCode::AuctionNotEnded);
-        
-        // Simulating the finalization if not using callback
-        auction.status = AuctionStatus::Closed;
-        auction.winner = winner_pubkey;
-        auction.highest_bid_amount = winning_bid_amount;
-
-        emit!(AuctionClosed {
-            auction_id: auction.auction_id,
-            winner: winner_pubkey,
-            winning_amount: winning_bid_amount,
-            total_bids: auction.total_bids,
-        });
-
-        Ok(())
+        err!(ErrorCode::ArciumCallbackRequired)
     }
 
     /// Settle winning bid - transfer funds to auction creator
     pub fn settle_auction(ctx: Context<SettleAuction>) -> anchor_lang::Result<()> {
         let auction = &ctx.accounts.auction;
 
-        require!(auction.status == AuctionStatus::Closed, ErrorCode::AuctionNotClosed);
-        require!(ctx.accounts.winner.key() == auction.winner, ErrorCode::NotWinner);
+        require!(
+            auction.status == AuctionStatus::Closed,
+            ErrorCode::AuctionNotClosed
+        );
+        require!(
+            ctx.accounts.winner.key() == auction.winner,
+            ErrorCode::NotWinner
+        );
 
         let auction_key = auction.key();
-        let seeds = &[
-            b"escrow",
-            auction_key.as_ref(),
-            &[auction.escrow_bump],
-        ];
+        let seeds = &[b"escrow", auction_key.as_ref(), &[auction.escrow_bump]];
         let signer = &[&seeds[..]];
 
         // Transfer winning bid to auction creator
@@ -233,16 +365,18 @@ pub mod shadowbid {
         let auction = &ctx.accounts.auction;
         let bid = &mut ctx.accounts.bid;
 
-        require!(auction.status == AuctionStatus::Closed, ErrorCode::AuctionNotClosed);
-        require!(bid.status == BidStatus::Active, ErrorCode::BidAlreadyProcessed);
+        require!(
+            auction.status == AuctionStatus::Closed,
+            ErrorCode::AuctionNotClosed
+        );
+        require!(
+            bid.status == BidStatus::Active,
+            ErrorCode::BidAlreadyProcessed
+        );
         require!(bid.bidder != auction.winner, ErrorCode::CannotRefundWinner);
 
         let auction_key = auction.key();
-        let seeds = &[
-            b"escrow",
-            auction_key.as_ref(),
-            &[auction.escrow_bump],
-        ];
+        let seeds = &[b"escrow", auction_key.as_ref(), &[auction.escrow_bump]];
         let signer = &[&seeds[..]];
 
         // Refund bid amount
@@ -383,6 +517,12 @@ pub struct CloseAuction<'info> {
     )]
     pub auction: Account<'info, Auction>,
 
+    #[account(
+        seeds = [b"bid", auction.key().as_ref(), winning_bid.bidder.as_ref()],
+        bump = winning_bid.bump
+    )]
+    pub winning_bid: Account<'info, Bid>,
+
     pub authority: Signer<'info>,
 }
 
@@ -495,7 +635,7 @@ pub struct Bid {
     pub bidder: Pubkey,
     pub bid_amount: u64,
     pub previous_bid: Pubkey, // Pointer to the previous bid in the list
-    #[max_len(256)]
+    #[max_len(1104)]
     pub encrypted_bid_data: Vec<u8>,
     #[max_len(256)]
     pub arcium_proof: Vec<u8>,
@@ -599,6 +739,8 @@ pub enum ErrorCode {
     InvalidEncryptedBid,
     #[msg("Invalid cryptographic proof")]
     InvalidProof,
+    #[msg("Invalid Arcium encryption public key")]
+    InvalidArciumPublicKey,
     #[msg("Bid amount is below reserve price")]
     BidBelowReserve,
     #[msg("Auction has already started")]
@@ -621,6 +763,12 @@ pub enum ErrorCode {
     CannotCancelWithBids,
     #[msg("Cannot cancel closed auction")]
     CannotCancelClosed,
+    #[msg("Winning bid account does not match the supplied result")]
+    InvalidWinningBid,
+    #[msg("Auction must be closed by a verified Arcium callback")]
+    ArciumCallbackRequired,
+    #[msg("Arcium MXE account is not assigned to a cluster")]
+    ClusterNotSet,
 }
 
 // ============================================================================
@@ -643,24 +791,23 @@ pub struct InitCompareBidsCompDef<'info> {
     #[account(mut)]
     pub mxe_account: Account<'info, MXEAccount>,
 
+    /// CHECK: Initialized by the Arcium program as the computation definition account.
     #[account(mut)]
-    /// CHECK: This is the computation definition account being initialized.
     pub comp_def_account: UncheckedAccount<'info>,
 
+    /// CHECK: Address lookup table used by the Arcium computation definition.
     #[account(mut)]
-    /// CHECK: Address lookup table for Arcium
     pub address_lookup_table: UncheckedAccount<'info>,
 
-    #[account(mut)]
-    /// CHECK: LUT program
+    /// CHECK: Solana address lookup table program account required by Arcium CPI.
     pub lut_program: UncheckedAccount<'info>,
 
-    pub arcium_program: Program<'info, Arcium>,
-
     pub system_program: Program<'info, System>,
+    pub arcium_program: Program<'info, Arcium>,
 }
 
 #[derive(Accounts)]
+#[instruction(computation_offset: u64)]
 pub struct CompareBids<'info> {
     #[account(
         mut,
@@ -672,11 +819,87 @@ pub struct CompareBids<'info> {
 
     pub authority: Signer<'info>,
 
-    #[account(mut)]
-    /// CHECK: Storage definition account for Arcium MXE
-    pub mxe_storage_account: AccountInfo<'info>,
+    #[account(
+        mut,
+        seeds = [b"bid", auction.key().as_ref(), bid_a.bidder.as_ref()],
+        bump = bid_a.bump
+    )]
+    pub bid_a: Account<'info, Bid>,
 
+    #[account(
+        mut,
+        seeds = [b"bid", auction.key().as_ref(), bid_b.bidder.as_ref()],
+        bump = bid_b.bump
+    )]
+    pub bid_b: Account<'info, Bid>,
+
+    #[account(address = derive_mxe_pda!())]
+    pub mxe_account: Account<'info, MXEAccount>,
+
+    /// CHECK: Arcium signer PDA.
+    #[account(address = derive_sign_pda!())]
+    pub sign_pda_account: UncheckedAccount<'info>,
+
+    /// CHECK: Arcium mempool PDA.
+    #[account(mut, address = derive_mempool_pda!(mxe_account, ErrorCode::ClusterNotSet))]
+    pub mempool_account: UncheckedAccount<'info>,
+
+    /// CHECK: Arcium executing pool PDA.
+    #[account(mut, address = derive_execpool_pda!(mxe_account, ErrorCode::ClusterNotSet))]
+    pub executing_pool: UncheckedAccount<'info>,
+
+    /// CHECK: Arcium computation PDA for this offset.
+    #[account(mut, address = derive_comp_pda!(computation_offset, mxe_account, ErrorCode::ClusterNotSet))]
+    pub computation_account: UncheckedAccount<'info>,
+
+    #[account(address = derive_comp_def_pda!(COMPARE_BIDS_COMP_DEF_OFFSET))]
+    pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
+
+    #[account(mut, address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet))]
+    pub cluster_account: Account<'info, Cluster>,
+
+    #[account(mut, address = ARCIUM_FEE_POOL_ACCOUNT_ADDRESS)]
+    pub pool_account: Account<'info, FeePool>,
+
+    #[account(mut, address = ARCIUM_CLOCK_ACCOUNT_ADDRESS)]
+    pub clock_account: Account<'info, ClockAccount>,
+
+    pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
+}
+
+impl<'info> arcium_anchor::traits::QueueCompAccs<'info> for CompareBids<'info> {
+    fn comp_def_offset(&self) -> u32 {
+        COMPARE_BIDS_COMP_DEF_OFFSET
+    }
+
+    fn queue_comp_accs(&self) -> QueueComputation<'info> {
+        QueueComputation {
+            signer: self.authority.to_account_info(),
+            sign_seed: self.sign_pda_account.to_account_info(),
+            comp: self.computation_account.to_account_info(),
+            mxe: self.mxe_account.to_account_info(),
+            mempool: self.mempool_account.to_account_info(),
+            executing_pool: self.executing_pool.to_account_info(),
+            comp_def_acc: self.comp_def_account.to_account_info(),
+            cluster: self.cluster_account.to_account_info(),
+            pool_account: self.pool_account.to_account_info(),
+            system_program: self.system_program.to_account_info(),
+            clock: self.clock_account.to_account_info(),
+        }
+    }
+
+    fn arcium_program(&self) -> AccountInfo<'info> {
+        self.arcium_program.to_account_info()
+    }
+
+    fn mxe_program(&self) -> Pubkey {
+        ID
+    }
+
+    fn signer_pda_bump(&self) -> u8 {
+        Pubkey::find_program_address(&[SIGN_PDA_SEED], &ID).1
+    }
 }
 
 #[derive(Accounts)]
@@ -688,5 +911,90 @@ pub struct CompareBidsCallback<'info> {
     )]
     pub auction: Account<'info, Auction>,
 
+    #[account(
+        mut,
+        seeds = [b"bid", auction.key().as_ref(), bid_a.bidder.as_ref()],
+        bump = bid_a.bump
+    )]
+    pub bid_a: Account<'info, Bid>,
+
+    #[account(
+        mut,
+        seeds = [b"bid", auction.key().as_ref(), bid_b.bidder.as_ref()],
+        bump = bid_b.bump
+    )]
+    pub bid_b: Account<'info, Bid>,
+
     pub arcium_program: Program<'info, Arcium>,
+
+    #[account(address = derive_comp_def_pda!(COMPARE_BIDS_COMP_DEF_OFFSET))]
+    pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
+
+    #[account(address = derive_mxe_pda!())]
+    pub mxe_account: Account<'info, MXEAccount>,
+
+    /// CHECK: Verified by Arcium output signature and callback instruction sysvar.
+    pub computation_account: UncheckedAccount<'info>,
+
+    pub cluster_account: Account<'info, Cluster>,
+
+    /// CHECK: Anchor cannot type sysvar instructions as an Account.
+    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
+    pub instructions_sysvar: AccountInfo<'info>,
+}
+
+impl CallbackCompAccs for CompareBidsCallback<'_> {
+    fn callback_ix(
+        computation_offset: u64,
+        mxe_account: &MXEAccount,
+        extra_accs: &[CallbackAccount],
+    ) -> anchor_lang::Result<CallbackInstruction> {
+        let mut accounts = Vec::with_capacity(extra_accs.len() + 6);
+        accounts.push(CallbackAccount {
+            pubkey: ARCIUM_PROG_ID,
+            is_writable: false,
+        });
+        accounts.push(CallbackAccount {
+            pubkey: derive_comp_def_pda!(COMPARE_BIDS_COMP_DEF_OFFSET),
+            is_writable: false,
+        });
+        accounts.push(CallbackAccount {
+            pubkey: derive_mxe_pda!(),
+            is_writable: false,
+        });
+        accounts.push(CallbackAccount {
+            pubkey: derive_comp_pda!(computation_offset, mxe_account, ErrorCode::ClusterNotSet),
+            is_writable: false,
+        });
+        accounts.push(CallbackAccount {
+            pubkey: derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet),
+            is_writable: false,
+        });
+        accounts.push(CallbackAccount {
+            pubkey: anchor_lang::solana_program::sysvar::instructions::ID,
+            is_writable: false,
+        });
+        accounts.extend_from_slice(extra_accs);
+
+        Ok(CallbackInstruction {
+            program_id: crate::ID,
+            discriminator: crate::instruction::CompareBidsCallback::DISCRIMINATOR.to_vec(),
+            accounts,
+        })
+    }
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct CompareBidsOutput {
+    pub field_0: CompareBidsOutputStruct0,
+}
+
+impl arcium_anchor::HasSize for CompareBidsOutput {
+    const SIZE: usize = 40;
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct CompareBidsOutputStruct0 {
+    pub field_0: u64,
+    pub field_1: [u8; 32],
 }

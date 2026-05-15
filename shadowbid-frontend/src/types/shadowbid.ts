@@ -116,6 +116,30 @@ export type Shadowbid = {
           }
         },
         {
+          "name": "winningBid",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "winning_bid.bidder",
+                "account": "bid"
+              }
+            ]
+          }
+        },
+        {
           "name": "authority",
           "signer": true,
           "relations": [
@@ -192,15 +216,109 @@ export type Shadowbid = {
           ]
         },
         {
-          "name": "mxeStorageAccount",
+          "name": "bidA",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bid_a.bidder",
+                "account": "bid"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bidB",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bid_b.bidder",
+                "account": "bid"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mxeAccount"
+        },
+        {
+          "name": "signPdaAccount"
+        },
+        {
+          "name": "mempoolAccount",
           "writable": true
+        },
+        {
+          "name": "executingPool",
+          "writable": true
+        },
+        {
+          "name": "computationAccount",
+          "writable": true
+        },
+        {
+          "name": "compDefAccount"
+        },
+        {
+          "name": "clusterAccount",
+          "writable": true
+        },
+        {
+          "name": "poolAccount",
+          "writable": true,
+          "address": "G2sRWJvi3xoyh5k2gY49eG9L8YhAEWQPtNb1zb1GXTtC"
+        },
+        {
+          "name": "clockAccount",
+          "writable": true,
+          "address": "7EbMUTLo5DjdzbN7s8BXeZwXzEwNQb1hScfRvWg8a6ot"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
         },
         {
           "name": "arciumProgram",
           "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "computationOffset",
+          "type": "u64"
+        },
+        {
+          "name": "cuPriceMicro",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "compareBidsCallback",
@@ -249,18 +367,94 @@ export type Shadowbid = {
           }
         },
         {
+          "name": "bidA",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bid_a.bidder",
+                "account": "bid"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bidB",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bid_b.bidder",
+                "account": "bid"
+              }
+            ]
+          }
+        },
+        {
           "name": "arciumProgram",
           "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+        },
+        {
+          "name": "compDefAccount"
+        },
+        {
+          "name": "mxeAccount"
+        },
+        {
+          "name": "computationAccount"
+        },
+        {
+          "name": "clusterAccount"
+        },
+        {
+          "name": "instructionsSysvar",
+          "address": "Sysvar1nstructions1111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "winnerPubkey",
-          "type": "pubkey"
-        },
-        {
-          "name": "winningBidAmount",
-          "type": "u64"
+          "name": "output",
+          "type": {
+            "defined": {
+              "name": "signedComputationOutputs",
+              "generics": [
+                {
+                  "kind": "type",
+                  "type": {
+                    "defined": {
+                      "name": "compareBidsOutput"
+                    }
+                  }
+                }
+              ]
+            }
+          }
         }
       ]
     },
@@ -407,16 +601,15 @@ export type Shadowbid = {
           "writable": true
         },
         {
-          "name": "lutProgram",
-          "writable": true
-        },
-        {
-          "name": "arciumProgram",
-          "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+          "name": "lutProgram"
         },
         {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "arciumProgram",
+          "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
         }
       ],
       "args": []
@@ -1121,6 +1314,58 @@ export type Shadowbid = {
       ]
     },
     {
+      "name": "clockAccount",
+      "discriminator": [
+        152,
+        171,
+        158,
+        195,
+        75,
+        61,
+        51,
+        8
+      ]
+    },
+    {
+      "name": "cluster",
+      "discriminator": [
+        236,
+        225,
+        118,
+        228,
+        173,
+        106,
+        18,
+        60
+      ]
+    },
+    {
+      "name": "computationDefinitionAccount",
+      "discriminator": [
+        245,
+        176,
+        217,
+        221,
+        253,
+        104,
+        172,
+        200
+      ]
+    },
+    {
+      "name": "feePool",
+      "discriminator": [
+        172,
+        38,
+        77,
+        146,
+        148,
+        5,
+        51,
+        242
+      ]
+    },
+    {
       "name": "mxeAccount",
       "discriminator": [
         103,
@@ -1275,61 +1520,105 @@ export type Shadowbid = {
     },
     {
       "code": 6009,
+      "name": "invalidArciumPublicKey",
+      "msg": "Invalid Arcium encryption public key"
+    },
+    {
+      "code": 6010,
       "name": "bidBelowReserve",
       "msg": "Bid amount is below reserve price"
     },
     {
-      "code": 6010,
+      "code": 6011,
       "name": "auctionAlreadyStarted",
       "msg": "Auction has already started"
     },
     {
-      "code": 6011,
+      "code": 6012,
       "name": "tooEarlyToStart",
       "msg": "Too early to start auction"
     },
     {
-      "code": 6012,
+      "code": 6013,
       "name": "auctionNotEnded",
       "msg": "Auction has not ended yet"
     },
     {
-      "code": 6013,
+      "code": 6014,
       "name": "noValidBids",
       "msg": "No valid bids received"
     },
     {
-      "code": 6014,
+      "code": 6015,
       "name": "auctionNotClosed",
       "msg": "Auction is not closed"
     },
     {
-      "code": 6015,
+      "code": 6016,
       "name": "notWinner",
       "msg": "Not the auction winner"
     },
     {
-      "code": 6016,
+      "code": 6017,
       "name": "bidAlreadyProcessed",
       "msg": "Bid has already been processed"
     },
     {
-      "code": 6017,
+      "code": 6018,
       "name": "cannotRefundWinner",
       "msg": "Cannot refund winning bid"
     },
     {
-      "code": 6018,
+      "code": 6019,
       "name": "cannotCancelWithBids",
       "msg": "Cannot cancel auction with active bids"
     },
     {
-      "code": 6019,
+      "code": 6020,
       "name": "cannotCancelClosed",
       "msg": "Cannot cancel closed auction"
+    },
+    {
+      "code": 6021,
+      "name": "invalidWinningBid",
+      "msg": "Winning bid account does not match the supplied result"
+    },
+    {
+      "code": 6022,
+      "name": "arciumCallbackRequired",
+      "msg": "Auction must be closed by a verified Arcium callback"
+    },
+    {
+      "code": 6023,
+      "name": "clusterNotSet",
+      "msg": "Arcium MXE account is not assigned to a cluster"
     }
   ],
   "types": [
+    {
+      "name": "activation",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "activationEpoch",
+            "type": {
+              "defined": {
+                "name": "epoch"
+              }
+            }
+          },
+          {
+            "name": "deactivationEpoch",
+            "type": {
+              "defined": {
+                "name": "epoch"
+              }
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "auction",
       "type": {
@@ -1533,6 +1822,20 @@ export type Shadowbid = {
       }
     },
     {
+      "name": "bn254g2blsPublicKey",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "array": [
+              "u8",
+              64
+            ]
+          }
+        ]
+      }
+    },
+    {
       "name": "bid",
       "type": {
         "kind": "struct",
@@ -1659,6 +1962,355 @@ export type Shadowbid = {
       }
     },
     {
+      "name": "circuitSource",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "local",
+            "fields": [
+              {
+                "defined": {
+                  "name": "localCircuitSource"
+                }
+              }
+            ]
+          },
+          {
+            "name": "onChain",
+            "fields": [
+              {
+                "defined": {
+                  "name": "onChainCircuitSource"
+                }
+              }
+            ]
+          },
+          {
+            "name": "offChain",
+            "fields": [
+              {
+                "defined": {
+                  "name": "offChainCircuitSource"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "clockAccount",
+      "docs": [
+        "An account storing the current network epoch"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "startEpoch",
+            "type": {
+              "defined": {
+                "name": "epoch"
+              }
+            }
+          },
+          {
+            "name": "currentEpoch",
+            "type": {
+              "defined": {
+                "name": "epoch"
+              }
+            }
+          },
+          {
+            "name": "startEpochTimestamp",
+            "type": {
+              "defined": {
+                "name": "timestamp"
+              }
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "cluster",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tdInfo",
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "nodeMetadata"
+                }
+              }
+            }
+          },
+          {
+            "name": "authority",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "clusterSize",
+            "type": "u16"
+          },
+          {
+            "name": "activation",
+            "type": {
+              "defined": {
+                "name": "activation"
+              }
+            }
+          },
+          {
+            "name": "maxCapacity",
+            "type": "u64"
+          },
+          {
+            "name": "cuPrice",
+            "type": "u64"
+          },
+          {
+            "name": "cuPriceProposals",
+            "type": {
+              "array": [
+                "u64",
+                32
+              ]
+            }
+          },
+          {
+            "name": "lastUpdatedEpoch",
+            "type": {
+              "defined": {
+                "name": "epoch"
+              }
+            }
+          },
+          {
+            "name": "nodes",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "nodeRef"
+                }
+              }
+            }
+          },
+          {
+            "name": "pendingNodes",
+            "type": {
+              "vec": "u32"
+            }
+          },
+          {
+            "name": "blsPublicKey",
+            "type": {
+              "defined": {
+                "name": "setUnset",
+                "generics": [
+                  {
+                    "kind": "type",
+                    "type": {
+                      "defined": {
+                        "name": "bn254g2blsPublicKey"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "compareBidsOutput",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "field0",
+            "type": {
+              "defined": {
+                "name": "compareBidsOutputStruct0"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "compareBidsOutputStruct0",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "field0",
+            "type": "u64"
+          },
+          {
+            "name": "field1",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "computationDefinitionAccount",
+      "docs": [
+        "An account representing a [ComputationDefinition] in a MXE."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "finalizationAuthority",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "cuAmount",
+            "type": "u64"
+          },
+          {
+            "name": "definition",
+            "type": {
+              "defined": {
+                "name": "computationDefinitionMeta"
+              }
+            }
+          },
+          {
+            "name": "circuitSource",
+            "type": {
+              "defined": {
+                "name": "circuitSource"
+              }
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "computationDefinitionMeta",
+      "docs": [
+        "A computation definition for execution in a MXE."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "circuitLen",
+            "type": "u32"
+          },
+          {
+            "name": "signature",
+            "type": {
+              "defined": {
+                "name": "computationSignature"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "computationSignature",
+      "docs": [
+        "The signature of a computation defined in a [ComputationDefinition]."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "parameters",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "parameter"
+                }
+              }
+            }
+          },
+          {
+            "name": "outputs",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "output"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "epoch",
+      "docs": [
+        "The network epoch"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          "u64"
+        ]
+      }
+    },
+    {
+      "name": "feePool",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "localCircuitSource",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "mxeKeygen"
+          },
+          {
+            "name": "mxeKeyRecoveryInit"
+          },
+          {
+            "name": "mxeKeyRecoveryFinalize"
+          }
+        ]
+      }
+    },
+    {
       "name": "mxeAccount",
       "docs": [
         "A MPC Execution Environment."
@@ -1751,6 +2403,223 @@ export type Shadowbid = {
       }
     },
     {
+      "name": "nodeMetadata",
+      "docs": [
+        "location as [ISO 3166-1 alpha-2](https://www.iso.org/iso-3166-country-codes.html) country code"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ip",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          },
+          {
+            "name": "peerId",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "location",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "nodeRef",
+      "docs": [
+        "A reference to a node in the cluster.",
+        "The offset is to derive the Node Account.",
+        "The current_total_rewards is the total rewards the node has received so far in the current",
+        "epoch."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "offset",
+            "type": "u32"
+          },
+          {
+            "name": "currentTotalRewards",
+            "type": "u64"
+          },
+          {
+            "name": "vote",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "offChainCircuitSource",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "source",
+            "type": "string"
+          },
+          {
+            "name": "hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "onChainCircuitSource",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "isCompleted",
+            "type": "bool"
+          },
+          {
+            "name": "uploadAuth",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "output",
+      "docs": [
+        "An output of a computation.",
+        "We currently don't support encrypted outputs yet since encrypted values are passed via",
+        "data objects."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "plaintextBool"
+          },
+          {
+            "name": "plaintextU8"
+          },
+          {
+            "name": "plaintextU16"
+          },
+          {
+            "name": "plaintextU32"
+          },
+          {
+            "name": "plaintextU64"
+          },
+          {
+            "name": "plaintextU128"
+          },
+          {
+            "name": "ciphertext"
+          },
+          {
+            "name": "arcisX25519Pubkey"
+          },
+          {
+            "name": "plaintextFloat"
+          },
+          {
+            "name": "plaintextPoint"
+          },
+          {
+            "name": "plaintextI8"
+          },
+          {
+            "name": "plaintextI16"
+          },
+          {
+            "name": "plaintextI32"
+          },
+          {
+            "name": "plaintextI64"
+          },
+          {
+            "name": "plaintextI128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "parameter",
+      "docs": [
+        "A parameter of a computation.",
+        "We differentiate between plaintext and encrypted parameters and data objects.",
+        "Plaintext parameters are directly provided as their value.",
+        "Encrypted parameters are provided as an offchain reference to the data.",
+        "Data objects are provided as a reference to the data object account."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "plaintextBool"
+          },
+          {
+            "name": "plaintextU8"
+          },
+          {
+            "name": "plaintextU16"
+          },
+          {
+            "name": "plaintextU32"
+          },
+          {
+            "name": "plaintextU64"
+          },
+          {
+            "name": "plaintextU128"
+          },
+          {
+            "name": "ciphertext"
+          },
+          {
+            "name": "arcisX25519Pubkey"
+          },
+          {
+            "name": "arcisSignature"
+          },
+          {
+            "name": "plaintextFloat"
+          },
+          {
+            "name": "plaintextI8"
+          },
+          {
+            "name": "plaintextI16"
+          },
+          {
+            "name": "plaintextI32"
+          },
+          {
+            "name": "plaintextI64"
+          },
+          {
+            "name": "plaintextI128"
+          },
+          {
+            "name": "plaintextPoint"
+          }
+        ]
+      }
+    },
+    {
       "name": "setUnset",
       "docs": [
         "Utility struct to store a value that needs to be set by a certain number of participants (keys",
@@ -1784,6 +2653,57 @@ export type Shadowbid = {
                 "vec": "bool"
               }
             ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "signedComputationOutputs",
+      "generics": [
+        {
+          "kind": "type",
+          "name": "o"
+        }
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "success",
+            "fields": [
+              {
+                "generic": "o"
+              },
+              {
+                "array": [
+                  "u8",
+                  64
+                ]
+              }
+            ]
+          },
+          {
+            "name": "failure"
+          },
+          {
+            "name": "markerForIdlBuildDoNotUseThis",
+            "fields": [
+              {
+                "generic": "o"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "timestamp",
+            "type": "u64"
           }
         ]
       }
