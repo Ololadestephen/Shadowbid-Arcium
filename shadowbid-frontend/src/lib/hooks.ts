@@ -64,26 +64,26 @@ export const useAuction = (auctionPda: PublicKey) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        const fetchAuction = async () => {
-            if (!client || !auctionPda) return;
-            try {
-                setLoading(true);
-                const data = await client.getAuction(auctionPda);
-                setAuction(data);
-                setError(null);
-            } catch (err: any) {
-                console.error('Error fetching auction:', err);
-                setError(err.message || 'Failed to fetch auction');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchAuction();
+    const fetchAuction = useCallback(async () => {
+        if (!client || !auctionPda) return;
+        try {
+            setLoading(true);
+            const data = await client.getAuction(auctionPda);
+            setAuction(data);
+            setError(null);
+        } catch (err: any) {
+            console.error('Error fetching auction:', err);
+            setError(err.message || 'Failed to fetch auction');
+        } finally {
+            setLoading(false);
+        }
     }, [client, auctionPda]);
 
-    return { auction, loading, error };
+    useEffect(() => {
+        fetchAuction();
+    }, [fetchAuction]);
+
+    return { auction, loading, error, refetch: fetchAuction };
 };
 
 export const useAuctionBids = (auctionPda: PublicKey) => {
@@ -92,36 +92,34 @@ export const useAuctionBids = (auctionPda: PublicKey) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        const fetchBids = async () => {
-            if (!client || !auctionPda) return;
-            try {
-                setLoading(true);
-                const data = await client.getAuctionBids(auctionPda);
-                setBids(data);
-                setError(null);
-            } catch (err: any) {
-                console.error('Error fetching bids:', err);
-                setError(err.message || 'Failed to fetch bids');
-            } finally {
-                setLoading(false);
-            }
-        };
+    const fetchBids = useCallback(async () => {
+        if (!client || !auctionPda) return;
+        try {
+            setLoading(true);
+            const data = await client.getAuctionBids(auctionPda);
+            setBids(data);
+            setError(null);
+        } catch (err: any) {
+            console.error('Error fetching bids:', err);
+            setError(err.message || 'Failed to fetch bids');
+        } finally {
+            setLoading(false);
+        }
+    }, [client, auctionPda]);
 
+    useEffect(() => {
         fetchBids();
 
-        const listenerId = client?.subscribeToBidEvents((event) => {
-            if (event.auction.equals(auctionPda)) {
-                fetchBids();
-            }
+        const listenerId = client?.subscribeToBidEvents(() => {
+            fetchBids();
         });
 
         return () => {
             if (client && listenerId) client.unsubscribe(listenerId);
         };
-    }, [client, auctionPda]);
+    }, [client, fetchBids]);
 
-    return { bids, loading, error };
+    return { bids, loading, error, refetch: fetchBids };
 };
 
 export const useStartAuction = () => {

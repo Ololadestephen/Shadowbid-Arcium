@@ -19,8 +19,8 @@ const AuctionDetails = () => {
     const { notify } = useNotifications();
 
 
-    const { auction, loading, error } = useAuction(auctionPda!);
-    const { bids, loading: bidsLoading } = useAuctionBids(auctionPda!);
+    const { auction, loading, error, refetch: refetchAuction } = useAuction(auctionPda!);
+    const { bids, loading: bidsLoading, refetch: refetchBids } = useAuctionBids(auctionPda!);
 
     const { placeBid, loading: bidding } = usePlaceBid();
     const { startAuction, loading: starting } = useStartAuction();
@@ -132,6 +132,15 @@ const AuctionDetails = () => {
     };
 
     const handlePlaceBid = async () => {
+        if (userBid) {
+            notify({
+                type: 'info',
+                title: 'Bid already placed',
+                message: 'Each wallet can place one encrypted bid per auction.',
+            });
+            return;
+        }
+
         if (!connected) {
             notify({
                 type: 'info',
@@ -202,6 +211,7 @@ const AuctionDetails = () => {
             });
             setBidAmount('');
             setBidProgress('');
+            await Promise.all([refetchAuction(), refetchBids()]);
         } catch (err: any) {
             setBidProgress('');
             notify({
@@ -483,12 +493,15 @@ const AuctionDetails = () => {
                             <div className="bg-primary-purple bg-opacity-10 p-6 rounded-xl border border-primary-purple">
                                 <div className="flex items-center space-x-2 mb-4">
                                     <Shield className="w-5 h-5 text-primary-purple" />
-                                    <h3 className="text-lg font-semibold text-text-primary">Place Your Bid</h3>
+                                    <h3 className="text-lg font-semibold text-text-primary">
+                                        {userBid ? 'Your Bid Is In' : 'Place Your Bid'}
+                                    </h3>
                                 </div>
 
                                 <p className="text-sm text-text-secondary mb-4">
-                                    Your bid will be encrypted using Arcium MPC before submission.
-                                    The wallet approvals before the final bid transaction store the encrypted bid privately on-chain.
+                                    {userBid
+                                        ? 'You have already placed one encrypted bid for this auction. It will remain private until Arcium finalizes the result.'
+                                        : 'Your bid will be encrypted using Arcium MPC before submission. The wallet approvals before the final bid transaction store the encrypted bid privately on-chain.'}
                                 </p>
 
                                 <div className="space-y-4">
@@ -503,18 +516,21 @@ const AuctionDetails = () => {
                                             value={bidAmount}
                                             onChange={(e) => setBidAmount(e.target.value)}
                                             placeholder="Enter amount"
-                                            className="w-full px-4 py-3 bg-background-input border border-border rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-primary-purple transition-colors"
+                                            disabled={Boolean(userBid) || bidding}
+                                            className="w-full px-4 py-3 bg-background-input border border-border rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-primary-purple transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                                         />
                                         <p className="text-xs text-text-muted mt-1">
-                                            Must be at least {lamportsToSol(auction.reservePrice.toNumber())} SOL
+                                            {userBid
+                                                ? `Your private bid: ${lamportsToSol(userBid.account.bidAmount.toNumber())} SOL`
+                                                : `Must be at least ${lamportsToSol(auction.reservePrice.toNumber())} SOL`}
                                         </p>
                                     </div>
 
 
                                     <button
                                         onClick={handlePlaceBid}
-                                        disabled={bidding || !connected}
-                                        className={`w-full py-4 rounded-lg font-semibold transition-all ${connected
+                                        disabled={Boolean(userBid) || bidding || !connected}
+                                        className={`w-full py-4 rounded-lg font-semibold transition-all ${connected && !userBid
                                             ? 'bg-primary-purple text-white hover:bg-opacity-90 btn-hover-lift'
                                             : 'bg-background-elevated text-text-disabled cursor-not-allowed'
                                             }`}
@@ -524,6 +540,8 @@ const AuctionDetails = () => {
                                                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                                 <span>Encrypting & Submitting...</span>
                                             </div>
+                                        ) : userBid ? (
+                                            'Bid Already Placed'
                                         ) : connected ? (
                                             'Place Encrypted Bid'
                                         ) : (
