@@ -457,9 +457,10 @@ pub mod shadowbid {
             ErrorCode::AuctionNotClosed
         );
         require!(
-            bid.status == BidStatus::Active,
+            bid.status != BidStatus::Refunded,
             ErrorCode::BidAlreadyProcessed
         );
+        require!(bid.status != BidStatus::Won, ErrorCode::CannotRefundWinner);
         require!(bid.bidder != auction.winner, ErrorCode::CannotRefundWinner);
 
         let auction_key = auction.key();
