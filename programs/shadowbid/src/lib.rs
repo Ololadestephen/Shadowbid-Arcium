@@ -13,7 +13,6 @@ use arcium_macros::circuit_hash;
 const BID_INPUT_CIPHERTEXTS: usize = 33;
 const LEGACY_ARCIUM_SHARED_BID_INPUT_LEN: usize = 32 + 16 + (BID_INPUT_CIPHERTEXTS * 32);
 const ARCIUM_SHARED_BID_INPUT_LEN: usize = 32 + 32 + (BID_INPUT_CIPHERTEXTS * 32);
-const BID_CIPHERTEXT_DATA_OFFSET: u32 = 8 + 32 + 32 + 4;
 const COMPARE_BIDS_COMP_DEF_OFFSET: u32 = arcium_anchor::comp_def_offset("compare_bids");
 const MIN_ARCIUM_PROOF_LEN: usize = 32;
 const MAX_CIPHERTEXT_CHUNK_LEN: usize = 800;
@@ -305,18 +304,11 @@ pub mod shadowbid {
             ErrorCode::InvalidEncryptedBid
         );
 
-        let args = ArgBuilder::new()
-            .account(
-                ctx.accounts.bid_a_ciphertext.key(),
-                BID_CIPHERTEXT_DATA_OFFSET,
-                ARCIUM_SHARED_BID_INPUT_LEN as u32,
-            )
-            .account(
-                ctx.accounts.bid_b_ciphertext.key(),
-                BID_CIPHERTEXT_DATA_OFFSET,
-                ARCIUM_SHARED_BID_INPUT_LEN as u32,
-            )
-            .build();
+        let args = append_encrypted_bid_arg(
+            append_encrypted_bid_arg(ArgBuilder::new(), &ctx.accounts.bid_a_ciphertext.data)?,
+            &ctx.accounts.bid_b_ciphertext.data,
+        )?
+        .build();
 
         let callback_ix = CompareBidsCallback::callback_ix(
             computation_offset,
@@ -990,6 +982,53 @@ fn ensure_arcium_signer_account<'info>(
     )?;
 
     Ok(())
+}
+
+fn append_encrypted_bid_arg(mut builder: ArgBuilder, data: &[u8]) -> Result<ArgBuilder> {
+    let ciphertext_start = match data.len() {
+        LEGACY_ARCIUM_SHARED_BID_INPUT_LEN => 48,
+        ARCIUM_SHARED_BID_INPUT_LEN => {
+            if data[LEGACY_ARCIUM_SHARED_BID_INPUT_LEN..]
+                .iter()
+                .all(|byte| *byte == 0)
+            {
+                48
+            } else {
+                require!(
+                    data[48..64].iter().all(|byte| *byte == 0),
+                    ErrorCode::InvalidEncryptedBid
+                );
+                64
+            }
+        }
+        _ => return err!(ErrorCode::InvalidEncryptedBid),
+    };
+
+    let mut public_key = [0u8; 32];
+    public_key.copy_from_slice(&data[0..32]);
+
+    let mut nonce_bytes = [0u8; 16];
+    nonce_bytes.copy_from_slice(&data[32..48]);
+    let nonce = u128::from_le_bytes(nonce_bytes);
+
+    builder = builder.x25519_pubkey(public_key).plaintext_u128(nonce);
+
+    for index in 0..BID_INPUT_CIPHERTEXTS {
+        let start = ciphertext_start + (index * 32);
+        let end = start + 32;
+        require!(end <= data.len(), ErrorCode::InvalidEncryptedBid);
+
+        let mut ciphertext = [0u8; 32];
+        ciphertext.copy_from_slice(&data[start..end]);
+
+        builder = if index == 0 {
+            builder.encrypted_u64(ciphertext)
+        } else {
+            builder.encrypted_u8(ciphertext)
+        };
+    }
+
+    Ok(builder)
 }
 
 #[init_computation_definition_accounts("compare_bids", payer)]

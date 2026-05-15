@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Lock, Clock, Shield, ArrowLeft, User, Calendar, DollarSign, RefreshCw, Trophy, Info, Cpu } from 'lucide-react';
 
@@ -108,24 +108,6 @@ const AuctionDetails = () => {
             setRefreshingStatus(false);
         }
     };
-
-    useEffect(() => {
-        if (!queuedComparison || auction?.status?.closed) return;
-
-        const intervalId = window.setInterval(async () => {
-            const freshAuction = await refreshAuctionStatus(false);
-            if (freshAuction?.status?.closed) {
-                notify({
-                    type: 'success',
-                    title: 'Auction finalized',
-                    message: 'Arcium returned the verified result and closed the auction.',
-                });
-                setQueuedComparison(null);
-            }
-        }, 15000);
-
-        return () => window.clearInterval(intervalId);
-    }, [queuedComparison, auction?.status?.closed, auctionPda]);
 
     const handleStartAuction = async () => {
         if (!auctionPda) return;
