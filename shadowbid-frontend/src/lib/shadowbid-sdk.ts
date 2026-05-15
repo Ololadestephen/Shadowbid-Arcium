@@ -20,7 +20,6 @@ import {
   RescueCipher,
   x25519,
   awaitComputationFinalization,
-  getArciumEnv,
   getArciumProgramId,
   getClockAccAddress,
   getClusterAccAddress,
@@ -37,6 +36,19 @@ import {
 const BID_INPUT_CIPHERTEXTS = 33;
 const ARCIUM_SHARED_BID_INPUT_LEN = 32 + 16 + BID_INPUT_CIPHERTEXTS * 32;
 const MAX_CIPHERTEXT_CHUNK_LEN = 800;
+const DEFAULT_ARCIUM_CLUSTER_OFFSET = 456;
+
+const getBrowserArciumClusterOffset = () => {
+  const configuredOffset = Number(
+    import.meta.env.VITE_ARCIUM_CLUSTER_OFFSET ?? DEFAULT_ARCIUM_CLUSTER_OFFSET
+  );
+
+  if (!Number.isFinite(configuredOffset)) {
+    throw new Error("Invalid VITE_ARCIUM_CLUSTER_OFFSET value");
+  }
+
+  return configuredOffset;
+};
 
 // Arcium encryption result interface
 interface ArciumEncryptionResult {
@@ -347,7 +359,7 @@ export class ShadowBidClient {
     waitForCallback?: boolean;
   }): Promise<{ signature: string; computationOffset: BN; finalizeSignature?: string }> {
     const auction = await this.getAuction(params.auctionPda);
-    const arciumEnv = getArciumEnv();
+    const arciumClusterOffset = getBrowserArciumClusterOffset();
     const computationOffset = new BN(
       Buffer.from(crypto.getRandomValues(new Uint8Array(8))),
       "le"
@@ -376,14 +388,14 @@ export class ShadowBidClient {
         bidBCiphertext: bidB.bidCiphertext,
         mxeAccount: getMXEAccAddress(this.program.programId),
         signPdaAccount,
-        mempoolAccount: getMempoolAccAddress(arciumEnv.arciumClusterOffset),
-        executingPool: getExecutingPoolAccAddress(arciumEnv.arciumClusterOffset),
+        mempoolAccount: getMempoolAccAddress(arciumClusterOffset),
+        executingPool: getExecutingPoolAccAddress(arciumClusterOffset),
         computationAccount: getComputationAccAddress(
-          arciumEnv.arciumClusterOffset,
+          arciumClusterOffset,
           computationOffset
         ),
         compDefAccount: getCompDefAccAddress(this.program.programId, compDefOffset),
-        clusterAccount: getClusterAccAddress(arciumEnv.arciumClusterOffset),
+        clusterAccount: getClusterAccAddress(arciumClusterOffset),
         poolAccount: getFeePoolAccAddress(),
         clockAccount: getClockAccAddress(),
         systemProgram: SystemProgram.programId,
